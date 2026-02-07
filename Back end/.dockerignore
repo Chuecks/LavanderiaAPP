@@ -1,0 +1,9 @@
+node_modules
+.env
+.git
+*.log
+npm-debug.log*
+.DS_Store
+README*.md
+INSTALACION*.md
+INSTALAR*.md

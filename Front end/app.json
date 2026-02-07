@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Lavadero App",
+    "slug": "lavadero-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#4A90E2"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lavadero.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#4A90E2"
+      },
+      "package": "com.lavadero.app"
+    },
+    "web": {}
+  }
+}
+
