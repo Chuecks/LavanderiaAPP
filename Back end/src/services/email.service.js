@@ -29,6 +29,7 @@ const crearTransporter = () => {
 const enviarEmailPedido = async (pedidoData) => {
     try {
         const { destino: emailDestino } = comprobarConfigEmail();
+        const transporter = crearTransporter();
         
         // Formatear dirección de recogida
         const dirRecogida = `
