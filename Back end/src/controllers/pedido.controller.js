@@ -1,5 +1,4 @@
 const Pedido = require('../models/pedido.model');
-const { publicarPedido } = require('../services/queue.service');
 const { enviarEmailPedido } = require('../services/email.service');
 const { geocodificarDireccion } = require('../services/geocoding.service');
 const { getClosestWithinKm, toPedidoEmbed, distanciaKm } = require('../services/lavanderia.service');
@@ -230,6 +229,7 @@ const crearPedido = async (req, res) => {
             telefono: req.usuario.telefono
         };
 
+        // Envio directo por SMTP (igual que olvide contrasena, sin RabbitMQ)
         try {
             console.log('Enviando email de pedido a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
             await enviarEmailPedido(pedidoPlano);
@@ -238,11 +238,6 @@ const crearPedido = async (req, res) => {
             console.error('Error al enviar email de pedido:', emailError.message);
             if (emailError.stack) console.error(emailError.stack);
         }
-
-        // Opcional: publicar tambi├⌐n a RabbitMQ por si hay consumidor (no bloquea)
-        try {
-            await publicarPedido({ _id: pedido._id, id: pedido._id.toString() });
-        } catch (_) {}
 
         res.status(201).json({
             success: true,
