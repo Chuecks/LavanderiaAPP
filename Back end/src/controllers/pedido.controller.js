@@ -1,4 +1,4 @@
-const Pedido = require('../models/pedido.model');
+﻿const Pedido = require('../models/pedido.model');
 const { publicarPedido } = require('../services/queue.service');
 const { enviarEmailPedido } = require('../services/email.service');
 const { geocodificarDireccion } = require('../services/geocoding.service');
@@ -7,8 +7,8 @@ const RADIO_KM = 5;
 const MIN_HORAS_ENTRE_RECOGIDA_Y_ENTREGA = 3;
 
 /**
- * Parsea horario en formato "Lunes, 3 de Febrero, 08:00" (día, fecha, hora) a Date.
- * Usa año actual; si la fecha resultante ya pasó, usa año siguiente.
+ * Parsea horario en formato "Lunes, 3 de Febrero, 08:00" (d├¡a, fecha, hora) a Date.
+ * Usa a├▒o actual; si la fecha resultante ya pas├│, usa a├▒o siguiente.
  */
 function parsearHorario(horarioStr) {
     if (!horarioStr || typeof horarioStr !== 'string') return null;
@@ -44,10 +44,10 @@ function validarHorarios(horarioRecogida, horarioEntrega) {
     if (!recogida || !entrega) return { ok: false, mensaje: 'No se pudieron interpretar los horarios. Revisa el formato.' };
     const ahora = new Date();
     if (recogida.getTime() < ahora.getTime() + UNA_HORA_MS) {
-        return { ok: false, mensaje: 'El horario de recogida debe ser al menos 1 hora después de ahora.' };
+        return { ok: false, mensaje: 'El horario de recogida debe ser al menos 1 hora despu├⌐s de ahora.' };
     }
     if (entrega.getTime() < ahora.getTime() + UNA_HORA_MS) {
-        return { ok: false, mensaje: 'El horario de entrega debe ser al menos 1 hora después de ahora.' };
+        return { ok: false, mensaje: 'El horario de entrega debe ser al menos 1 hora despu├⌐s de ahora.' };
     }
     if (recogida.getTime() >= entrega.getTime()) {
         return { ok: false, mensaje: 'El horario de entrega debe ser posterior al de recogida.' };
@@ -117,7 +117,7 @@ const obtenerPedido = async (req, res) => {
     }
 };
 
-// Crear un nuevo pedido (solo si la dirección de recogida está a ≤5 km de alguna lavandería)
+// Crear un nuevo pedido (solo si la direcci├│n de recogida est├í a Γëñ5 km de alguna lavander├¡a)
 const crearPedido = async (req, res) => {
     try {
         const {
@@ -147,34 +147,34 @@ const crearPedido = async (req, res) => {
             });
         }
 
-        // Geocodificar dirección de recogida
+        // Geocodificar direcci├│n de recogida
         const coordsRecogida = await geocodificarDireccion(direccionRecogida);
         if (!coordsRecogida) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No se pudo verificar la dirección de recogida. Revisa que la dirección sea correcta.',
+                mensaje: 'No se pudo verificar la direcci├│n de recogida. Revisa que la direcci├│n sea correcta.',
                 codigo: 'DIRECCION_NO_GEOCOCODIFICADA'
             });
         }
 
-        // Buscar lavandería más cercana dentro de RADIO_KM (recogida)
+        // Buscar lavander├¡a m├ís cercana dentro de RADIO_KM (recogida)
         const resultado = await getClosestWithinKm(coordsRecogida.lat, coordsRecogida.lng, RADIO_KM);
         if (!resultado) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No hay ninguna lavandería a menos de 5 km de tu dirección de recogida. No podemos tomar tu pedido en esta zona.',
+                mensaje: 'No hay ninguna lavander├¡a a menos de 5 km de tu direcci├│n de recogida. No podemos tomar tu pedido en esta zona.',
                 codigo: 'NO_LAVANDERIA_CERCANA'
             });
         }
 
         const lavanderia = resultado.lavanderia;
 
-        // Geocodificar dirección de entrega y validar que esté a ≤5 km de la lavandería asignada
+        // Geocodificar direcci├│n de entrega y validar que est├⌐ a Γëñ5 km de la lavander├¡a asignada
         const coordsEntrega = await geocodificarDireccion(direccionEntrega);
         if (!coordsEntrega) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No se pudo verificar la dirección de entrega. Revisa que la dirección sea correcta.',
+                mensaje: 'No se pudo verificar la direcci├│n de entrega. Revisa que la direcci├│n sea correcta.',
                 codigo: 'DIRECCION_ENTREGA_NO_GEOCOCODIFICADA'
             });
         }
@@ -182,7 +182,7 @@ const crearPedido = async (req, res) => {
         if (distEntregaLavanderia > RADIO_KM) {
             return res.status(400).json({
                 success: false,
-                mensaje: `La dirección de entrega está a más de 5 km de la lavandería asignada (${lavanderia.nombre}). No podemos entregar en esa zona.`,
+                mensaje: `La direcci├│n de entrega est├í a m├ís de 5 km de la lavander├¡a asignada (${lavanderia.nombre}). No podemos entregar en esa zona.`,
                 codigo: 'ENTREGA_FUERA_DE_RANGO'
             });
         }
@@ -221,7 +221,7 @@ const crearPedido = async (req, res) => {
 
         await pedido.save();
 
-        // Enviar email a lavaderojmm (misma cuenta que "olvidé contraseña"): siempre directo para que llegue seguro
+        // Enviar email a lavaderojmm (misma cuenta que "olvid├⌐ contrase├▒a"): siempre directo para que llegue seguro
         const pedidoParaEmail = {
             _id: pedido._id,
             id: pedido._id.toString(),
@@ -242,13 +242,12 @@ const crearPedido = async (req, res) => {
         };
         try {
             await enviarEmailPedido(pedidoParaEmail);
-            console.log('✅ Email de nuevo pedido enviado a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
+            console.log('Γ£à Email de nuevo pedido enviado a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
         } catch (emailError) {
-            console.error('❌ Error al enviar email de pedido:', emailError.message);
-            if (emailError.response) console.error('   Detalle:', emailError.response);
+            console.error('Γ¥î Error al enviar email de pedido:', emailError.message);
         }
 
-        // Opcional: publicar también a RabbitMQ por si hay consumidor (no bloquea)
+        // Opcional: publicar tambi├⌐n a RabbitMQ por si hay consumidor (no bloquea)
         try {
             await publicarPedido({ _id: pedido._id, id: pedido._id.toString() });
         } catch (_) {}
@@ -276,7 +275,7 @@ const actualizarEstadoPedido = async (req, res) => {
         if (!['pendiente', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'Estado inválido'
+                mensaje: 'Estado inv├ílido'
             });
         }
 
@@ -314,7 +313,7 @@ const actualizarEstadoPedido = async (req, res) => {
     }
 };
 
-// Obtener estadísticas de pedidos del usuario
+// Obtener estad├¡sticas de pedidos del usuario
 const obtenerEstadisticas = async (req, res) => {
     try {
         const usuarioId = req.usuario._id;
@@ -336,10 +335,10 @@ const obtenerEstadisticas = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error al obtener estadísticas:', error);
+        console.error('Error al obtener estad├¡sticas:', error);
         res.status(500).json({
             success: false,
-            mensaje: 'Error al obtener estadísticas',
+            mensaje: 'Error al obtener estad├¡sticas',
             error: error.message
         });
     }

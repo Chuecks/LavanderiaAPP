@@ -25,201 +25,113 @@ const crearTransporter = () => {
     });
 };
 
-// Enviar email de notificación de nuevo pedido
+// Enviar email de notificación de nuevo pedido (mismo flujo que "olvidé contraseña")
 const enviarEmailPedido = async (pedidoData) => {
-    try {
-        const { destino: emailDestino } = comprobarConfigEmail();
-        const transporter = crearTransporter();
-        
-        // Formatear dirección de recogida
-        const dirRecogida = `
-            ${pedidoData.direccionRecogida.calle} ${pedidoData.direccionRecogida.numeroPuerta}
-            ${pedidoData.direccionRecogida.numeroApartamento ? `Apt. ${pedidoData.direccionRecogida.numeroApartamento}` : ''}
-            ${pedidoData.direccionRecogida.ciudad}, ${pedidoData.direccionRecogida.departamento}
-            Código Postal: ${pedidoData.direccionRecogida.codigoPostal}
-        `.trim();
-        
-        // Formatear dirección de entrega
-        const dirEntrega = `
-            ${pedidoData.direccionEntrega.calle} ${pedidoData.direccionEntrega.numeroPuerta}
-            ${pedidoData.direccionEntrega.numeroApartamento ? `Apt. ${pedidoData.direccionEntrega.numeroApartamento}` : ''}
-            ${pedidoData.direccionEntrega.ciudad}, ${pedidoData.direccionEntrega.departamento}
-            Código Postal: ${pedidoData.direccionEntrega.codigoPostal}
-        `.trim();
+    // Igual que enviarEmailNuevaContrasena: primero comprobar config y crear transporter
+    comprobarConfigEmail();
+    const transporter = crearTransporter();
+    const emailDestino = process.env.EMAIL_DESTINO || process.env.EMAIL_USER;
 
-        // Lavandería asignada (si existe)
-        const lavanderia = pedidoData.lavanderia;
-        const lavanderiaHtml = lavanderia ? `
-                            <div class="section">
-                                <div class="section-title">🏪 Lavandería asignada a este pedido</div>
-                                <div class="info-row">
-                                    <span class="label">Nombre:</span>
-                                    <span class="value">${lavanderia.nombre || 'N/A'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="label">Dirección:</span>
-                                    <span class="value">${[lavanderia.calle, lavanderia.numeroPuerta].filter(Boolean).join(' ')}${lavanderia.numeroApartamento ? `, Apt. ${lavanderia.numeroApartamento}` : ''}, ${lavanderia.ciudad || ''}, ${lavanderia.departamento || ''}${lavanderia.codigoPostal ? ` (CP ${lavanderia.codigoPostal})` : ''}</span>
-                                </div>
-                                ${lavanderia.barrio ? `<div class="info-row"><span class="label">Barrio:</span><span class="value">${lavanderia.barrio}</span></div>` : ''}
-                            </div>
-        ` : '';
+    // Datos seguros para no lanzar antes de sendMail (como en olvidé contraseña)
+    const d = (obj, key, def = '') => (obj && obj[key] != null ? String(obj[key]) : def);
+    const rec = pedidoData?.direccionRecogida || {};
+    const ent = pedidoData?.direccionEntrega || {};
+    const dirRecogida = `${d(rec, 'calle')} ${d(rec, 'numeroPuerta')} ${d(rec, 'numeroApartamento') ? 'Apt. ' + rec.numeroApartamento : ''} ${d(rec, 'ciudad')}, ${d(rec, 'departamento')} CP: ${d(rec, 'codigoPostal')}`.trim();
+    const dirEntrega = `${d(ent, 'calle')} ${d(ent, 'numeroPuerta')} ${d(ent, 'numeroApartamento') ? 'Apt. ' + ent.numeroApartamento : ''} ${d(ent, 'ciudad')}, ${d(ent, 'departamento')} CP: ${d(ent, 'codigoPostal')}`.trim();
+    const servicioNombre = (pedidoData?.servicio && pedidoData.servicio.nombre) ? pedidoData.servicio.nombre : 'Servicio';
+    const servicioPrecio = (pedidoData?.servicio && pedidoData.servicio.precio != null) ? Number(pedidoData.servicio.precio).toLocaleString() : '0';
+    const usuario = pedidoData?.usuario || {};
+    const lav = pedidoData?.lavanderia;
+    const lavanderiaLinea = lav ? `Lavandería: ${lav.nombre || 'N/A'} - ${[lav.calle, lav.numeroPuerta, lav.ciudad].filter(Boolean).join(', ')}` : '';
+    const idPedido = (pedidoData && (pedidoData._id || pedidoData.id)) ? String(pedidoData._id || pedidoData.id) : 'N/A';
+    const fechaPedido = pedidoData?.createdAt ? new Date(pedidoData.createdAt).toLocaleString('es-UY') : new Date().toLocaleString('es-UY');
+    const horarioRec = d(pedidoData, 'horarioRecogida', 'N/A');
+    const horarioEnt = d(pedidoData, 'horarioEntrega', 'N/A');
+    const notas = d(pedidoData, 'notas');
 
-        const lavanderiaText = lavanderia ? `
-Lavandería asignada a este pedido:
-Nombre: ${lavanderia.nombre || 'N/A'}
-Dirección: ${[lavanderia.calle, lavanderia.numeroPuerta].filter(Boolean).join(' ')}${lavanderia.numeroApartamento ? `, Apt. ${lavanderia.numeroApartamento}` : ''}, ${lavanderia.ciudad || ''}, ${lavanderia.departamento || ''}${lavanderia.codigoPostal ? ` (CP ${lavanderia.codigoPostal})` : ''}${lavanderia.barrio ? `\nBarrio: ${lavanderia.barrio}` : ''}
-` : '';
-
-        // Información del usuario
-        const usuarioInfo = pedidoData.usuario ? `
-            <strong>Cliente:</strong> ${pedidoData.usuario.nombre || 'N/A'}<br>
-            <strong>Email:</strong> ${pedidoData.usuario.email || 'N/A'}<br>
-            <strong>Teléfono:</strong> ${pedidoData.usuario.telefono || 'N/A'}<br>
-        ` : '';
-        
-        const mailOptions = {
-            from: `"Lavadero App" <${process.env.EMAIL_USER}>`,
-            to: emailDestino,
-            subject: `Nuevo Pedido - ${pedidoData.servicio?.nombre || 'Servicio'}`,
-            html: `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <style>
-                        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                        .header { background-color: #4A90E2; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-                        .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
-                        .section { margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 5px; }
-                        .section-title { color: #4A90E2; font-weight: bold; margin-bottom: 10px; }
-                        .info-row { margin: 8px 0; }
-                        .label { font-weight: bold; color: #666; }
-                        .value { color: #333; }
-                        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>🔄 Nuevo Pedido Recibido</h1>
-                        </div>
-                        <div class="content">
-                            <div class="section">
-                                <div class="section-title">📋 Información del Pedido</div>
-                                <div class="info-row">
-                                    <span class="label">ID del Pedido:</span>
-                                    <span class="value">${pedidoData._id || pedidoData.id || 'N/A'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="label">Estado:</span>
-                                    <span class="value">${pedidoData.estado || 'Pendiente'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="label">Fecha de Creación:</span>
-                                    <span class="value">${new Date(pedidoData.createdAt || Date.now()).toLocaleString('es-UY')}</span>
-                                </div>
-                            </div>
-                            
-                            <div class="section">
-                                <div class="section-title">👤 Información del Cliente</div>
-                                ${usuarioInfo}
-                            </div>
-                            
-                            <div class="section">
-                                <div class="section-title">🛍️ Servicio Solicitado</div>
-                                <div class="info-row">
-                                    <span class="label">Nombre:</span>
-                                    <span class="value">${pedidoData.servicio?.nombre || 'N/A'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="label">Precio:</span>
-                                    <span class="value">$${pedidoData.servicio?.precio?.toLocaleString() || '0'}</span>
-                                </div>
-                                ${pedidoData.servicio?.descripcion ? `
-                                    <div class="info-row">
-                                        <span class="label">Descripción:</span>
-                                        <span class="value">${pedidoData.servicio.descripcion}</span>
-                                    </div>
-                                ` : ''}
-                            </div>
-                            
-                            <div class="section">
-                                <div class="section-title">📍 Dirección de Recogida</div>
-                                <div class="value">${dirRecogida.replace(/\n/g, '<br>')}</div>
-                            </div>
-                            ${lavanderiaHtml}
-                            <div class="section">
-                                <div class="section-title">📍 Dirección de Entrega</div>
-                                <div class="value">${dirEntrega.replace(/\n/g, '<br>')}</div>
-                            </div>
-                            
-                            <div class="section">
-                                <div class="section-title">⏰ Horarios</div>
-                                <div class="info-row">
-                                    <span class="label">Horario de Recogida:</span>
-                                    <span class="value">${pedidoData.horarioRecogida || 'N/A'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="label">Horario de Entrega:</span>
-                                    <span class="value">${pedidoData.horarioEntrega || 'N/A'}</span>
-                                </div>
-                            </div>
-                            
-                            ${pedidoData.notas ? `
-                                <div class="section">
-                                    <div class="section-title">📝 Notas Adicionales</div>
-                                    <div class="value">${pedidoData.notas}</div>
-                                </div>
-                            ` : ''}
-                        </div>
-                        <div class="footer">
-                            <p>Este es un email automático del sistema Lavadero App</p>
-                            <p>Por favor, procesa este pedido lo antes posible.</p>
-                        </div>
+    const mailOptions = {
+        from: `"Lavadero App" <${process.env.EMAIL_USER}>`,
+        to: emailDestino,
+        subject: `Nuevo Pedido - ${servicioNombre}`,
+        html: `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                    .header { background-color: #4A90E2; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+                    .content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }
+                    .section { margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 5px; }
+                    .section-title { color: #4A90E2; font-weight: bold; margin-bottom: 10px; }
+                    .info-row { margin: 8px 0; }
+                    .label { font-weight: bold; color: #666; }
+                    .value { color: #333; }
+                    .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>Nuevo Pedido Recibido</h1>
                     </div>
-                </body>
-                </html>
-            `,
-            text: `
-Nuevo Pedido Recibido
+                    <div class="content">
+                        <div class="section">
+                            <div class="section-title">Información del Pedido</div>
+                            <div class="info-row"><span class="label">ID:</span> <span class="value">${idPedido}</span></div>
+                            <div class="info-row"><span class="label">Estado:</span> <span class="value">${d(pedidoData, 'estado', 'Pendiente')}</span></div>
+                            <div class="info-row"><span class="label">Fecha:</span> <span class="value">${fechaPedido}</span></div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Cliente</div>
+                            <div class="info-row"><span class="label">Nombre:</span> <span class="value">${d(usuario, 'nombre', 'N/A')}</span></div>
+                            <div class="info-row"><span class="label">Email:</span> <span class="value">${d(usuario, 'email', 'N/A')}</span></div>
+                            <div class="info-row"><span class="label">Teléfono:</span> <span class="value">${d(usuario, 'telefono', 'N/A')}</span></div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Servicio</div>
+                            <div class="info-row"><span class="label">Nombre:</span> <span class="value">${servicioNombre}</span></div>
+                            <div class="info-row"><span class="label">Precio:</span> <span class="value">$${servicioPrecio}</span></div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Dirección de Recogida</div>
+                            <div class="value">${dirRecogida.replace(/\n/g, '<br>')}</div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Dirección de Entrega</div>
+                            <div class="value">${dirEntrega.replace(/\n/g, '<br>')}</div>
+                        </div>
+                        <div class="section">
+                            <div class="section-title">Horarios</div>
+                            <div class="info-row"><span class="label">Recogida:</span> <span class="value">${horarioRec}</span></div>
+                            <div class="info-row"><span class="label">Entrega:</span> <span class="value">${horarioEnt}</span></div>
+                        </div>
+                        ${notas ? `<div class="section"><div class="section-title">Notas</div><div class="value">${String(notas).replace(/</g, '&lt;')}</div></div>` : ''}
+                    </div>
+                    <div class="footer">
+                        <p>Email automático Lavadero App. Procesa este pedido lo antes posible.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `,
+        text: [
+            'Nuevo Pedido Recibido',
+            'ID: ' + idPedido,
+            'Cliente: ' + d(usuario, 'nombre', 'N/A') + ' - ' + d(usuario, 'email', 'N/A') + ' - ' + d(usuario, 'telefono', 'N/A'),
+            'Servicio: ' + servicioNombre + ' - $' + servicioPrecio,
+            'Recogida: ' + dirRecogida,
+            lavanderiaLinea,
+            'Entrega: ' + dirEntrega,
+            'Horario recogida: ' + horarioRec,
+            'Horario entrega: ' + horarioEnt,
+            notas ? 'Notas: ' + notas : ''
+        ].filter(Boolean).join('\n')
+    };
 
-ID del Pedido: ${pedidoData._id || pedidoData.id || 'N/A'}
-Estado: ${pedidoData.estado || 'Pendiente'}
-
-Información del Cliente:
-${pedidoData.usuario ? `
-Cliente: ${pedidoData.usuario.nombre || 'N/A'}
-Email: ${pedidoData.usuario.email || 'N/A'}
-Teléfono: ${pedidoData.usuario.telefono || 'N/A'}
-` : ''}
-
-Servicio Solicitado:
-Nombre: ${pedidoData.servicio?.nombre || 'N/A'}
-Precio: $${pedidoData.servicio?.precio?.toLocaleString() || '0'}
-${pedidoData.servicio?.descripcion ? `Descripción: ${pedidoData.servicio.descripcion}` : ''}
-
-Dirección de Recogida:
-${dirRecogida}
-${lavanderiaText}
-
-Dirección de Entrega:
-${dirEntrega}
-
-Horarios:
-Recogida: ${pedidoData.horarioRecogida || 'N/A'}
-Entrega: ${pedidoData.horarioEntrega || 'N/A'}
-
-${pedidoData.notas ? `Notas: ${pedidoData.notas}` : ''}
-            `.trim()
-        };
-        
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email enviado exitosamente:', info.messageId);
-        return info;
-    } catch (error) {
-        console.error('❌ Error al enviar email:', error);
-        throw error;
-    }
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email de nuevo pedido enviado:', info.messageId);
+    return info;
 };
 
 // Enviar email con nueva contraseña (restablecer contraseña)

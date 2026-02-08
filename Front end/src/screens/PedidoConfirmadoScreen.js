@@ -9,11 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PedidoConfirmadoScreen({ route, navigation }) {
-  const { pedido, error, servicioNombre } = route.params || {};
+  const { pedido, error, servicioNombre, emailEnviado } = route.params || {};
   const exito = !error && pedido;
 
   useEffect(() => {
-    // Auto-redirigir a Home después de 3 segundos si es exitoso
     if (exito) {
       const timer = setTimeout(() => {
         navegarAHome();
@@ -60,9 +59,16 @@ export default function PedidoConfirmadoScreen({ route, navigation }) {
             </Text>
             <View style={styles.infoBox}>
               <Ionicons name="information-circle" size={24} color="#4A90E2" />
-              <Text style={styles.infoText}>
-                Te contactaremos pronto para confirmar los detalles de recogida y entrega.
-              </Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.infoText, { marginLeft: 0 }]}>
+                  Te contactaremos pronto para confirmar los detalles de recogida y entrega.
+                </Text>
+                {emailEnviado === false && (
+                  <Text style={[styles.infoText, { marginLeft: 0, color: '#E94B3C', marginTop: 8 }]}>
+                    No se pudo enviar el email de confirmación al negocio. El pedido está registrado; si hace falta, contacta a lavaderojmm@gmail.com.
+                  </Text>
+                )}
+              </View>
             </View>
             {pedido?.lavanderia?.nombre ? (
               <View style={styles.lavanderiaBox}>
@@ -106,10 +112,10 @@ export default function PedidoConfirmadoScreen({ route, navigation }) {
             colors={exito ? ['#4A90E2', '#357ABD'] : ['#E94B3C', '#C0392B']}
             style={styles.buttonGradient}
           >
-            <Ionicons 
-              name={exito ? "home" : "arrow-back"} 
-              size={20} 
-              color="#fff" 
+            <Ionicons
+              name={exito ? "home" : "arrow-back"}
+              size={20}
+              color="#fff"
             />
             <Text style={styles.buttonText}>
               {exito ? 'Ir a Inicio' : 'Volver'}
@@ -117,6 +123,7 @@ export default function PedidoConfirmadoScreen({ route, navigation }) {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+      <View style={styles.bottomSpacer} />
     </View>
   );
 }
@@ -127,39 +134,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    paddingTop: 80,
-    paddingBottom: 40,
+    paddingTop: 48,
+    paddingBottom: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconContainer: {
-    marginTop: 20,
+    marginTop: 0,
   },
   content: {
     flex: 1,
     padding: 30,
+    paddingBottom: 20,
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  bottomSpacer: {
+    height: 40,
+    minHeight: 40,
   },
   title: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 15,
     textAlign: 'center',
   },
   titleError: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#E94B3C',
     marginBottom: 15,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 17,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
     lineHeight: 26,
   },
   infoBox: {
@@ -189,8 +200,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 20,
     alignItems: 'flex-start',
-    borderLeftWidth: 4,
-    borderLeftColor: '#4A90E2',
   },
   lavanderiaTextWrap: {
     flex: 1,
@@ -198,12 +207,11 @@ const styles = StyleSheet.create({
   },
   lavanderiaLabel: {
     fontSize: 12,
-    color: '#4A90E2',
-    fontWeight: '600',
+    color: '#666',
     marginBottom: 4,
   },
   lavanderiaNombre: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 4,
@@ -216,14 +224,14 @@ const styles = StyleSheet.create({
   redirectText: {
     fontSize: 14,
     color: '#999',
-    marginBottom: 30,
-    fontStyle: 'italic',
+    marginBottom: 24,
   },
   button: {
     borderRadius: 25,
     overflow: 'hidden',
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 320,
+    marginBottom: 24,
   },
   buttonGradient: {
     flexDirection: 'row',
