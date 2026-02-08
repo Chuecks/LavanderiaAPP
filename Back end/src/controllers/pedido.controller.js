@@ -1,4 +1,4 @@
-﻿const Pedido = require('../models/pedido.model');
+const Pedido = require('../models/pedido.model');
 const { publicarPedido } = require('../services/queue.service');
 const { enviarEmailPedido } = require('../services/email.service');
 const { geocodificarDireccion } = require('../services/geocoding.service');
@@ -221,30 +221,22 @@ const crearPedido = async (req, res) => {
 
         await pedido.save();
 
-        // Enviar email a lavaderojmm (misma cuenta que "olvid├⌐ contrase├▒a"): siempre directo para que llegue seguro
-        const pedidoParaEmail = {
-            _id: pedido._id,
-            id: pedido._id.toString(),
-            estado: pedido.estado,
-            createdAt: pedido.createdAt,
-            servicio: pedido.servicio,
-            direccionRecogida: pedido.direccionRecogida,
-            direccionEntrega: pedido.direccionEntrega,
-            horarioRecogida: pedido.horarioRecogida,
-            horarioEntrega: pedido.horarioEntrega,
-            notas: pedido.notas,
-            lavanderia: pedido.lavanderia,
-            usuario: {
-                nombre: req.usuario.nombre,
-                email: req.usuario.email,
-                telefono: req.usuario.telefono
-            }
+        // Objeto plano para el email (evita problemas con subdocumentos Mongoose)
+        const pedidoPlano = pedido.toObject ? pedido.toObject() : JSON.parse(JSON.stringify(pedido));
+        pedidoPlano.id = (pedidoPlano._id && pedidoPlano._id.toString) ? pedidoPlano._id.toString() : String(pedidoPlano._id);
+        pedidoPlano.usuario = {
+            nombre: req.usuario.nombre,
+            email: req.usuario.email,
+            telefono: req.usuario.telefono
         };
+
         try {
-            await enviarEmailPedido(pedidoParaEmail);
-            console.log('Γ£à Email de nuevo pedido enviado a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
+            console.log('Enviando email de pedido a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
+            await enviarEmailPedido(pedidoPlano);
+            console.log('Email de nuevo pedido enviado OK');
         } catch (emailError) {
-            console.error('Γ¥î Error al enviar email de pedido:', emailError.message);
+            console.error('Error al enviar email de pedido:', emailError.message);
+            if (emailError.stack) console.error(emailError.stack);
         }
 
         // Opcional: publicar tambi├⌐n a RabbitMQ por si hay consumidor (no bloquea)
