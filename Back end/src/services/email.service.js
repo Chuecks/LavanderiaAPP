@@ -1,7 +1,21 @@
 const nodemailer = require('nodemailer');
 
+// Comprobar que la configuración de email esté lista (evita errores poco claros de nodemailer)
+const comprobarConfigEmail = () => {
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+    if (!user || !pass) {
+        const msg = '⚠️ Faltan EMAIL_USER o EMAIL_PASS en el entorno. Crea/edita Back end/.env con tu Gmail y contraseña de aplicación. Los emails no se enviarán.';
+        console.error(msg);
+        throw new Error(msg);
+    }
+    const destino = process.env.EMAIL_DESTINO || user;
+    return { user, pass, destino };
+};
+
 // Configurar el transporter de email
 const crearTransporter = () => {
+    comprobarConfigEmail();
     return nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || 'gmail',
         auth: {
@@ -14,15 +28,7 @@ const crearTransporter = () => {
 // Enviar email de notificación de nuevo pedido
 const enviarEmailPedido = async (pedidoData) => {
     try {
-        const emailDestino = process.env.EMAIL_DESTINO || process.env.EMAIL_USER;
-        if (!emailDestino) {
-            console.warn('⚠️ EMAIL_DESTINO y EMAIL_USER no configurados. No se enviará email.');
-            return;
-        }
-        if (!process.env.EMAIL_PASS) {
-            console.warn('⚠️ EMAIL_PASS no configurado. Para Gmail usa una "Contraseña de aplicación".');
-        }
-        const transporter = crearTransporter();
+        const { destino: emailDestino } = comprobarConfigEmail();
         
         // Formatear dirección de recogida
         const dirRecogida = `
@@ -218,6 +224,7 @@ ${pedidoData.notas ? `Notas: ${pedidoData.notas}` : ''}
 // Enviar email con nueva contraseña (restablecer contraseña)
 const enviarEmailNuevaContrasena = async (emailDestino, nombreUsuario, nuevaContrasena) => {
     try {
+        comprobarConfigEmail();
         const transporter = crearTransporter();
         const mailOptions = {
             from: `"Lavadero App" <${process.env.EMAIL_USER}>`,

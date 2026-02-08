@@ -265,10 +265,16 @@ const olvideContrasena = async (req, res) => {
             mensaje: 'Se ha creado una nueva contraseña y se ha enviado a tu email. Revisa tu bandeja y cámbiala por una personal después de iniciar sesión.'
         });
     } catch (error) {
-        console.error('Error en olvidé contraseña:', error);
+        console.error('❌ Error en olvidé contraseña:', error.message);
+        if (error.message.includes('EMAIL_USER') || error.message.includes('EMAIL_PASS')) {
+            return res.status(500).json({
+                success: false,
+                mensaje: 'No está configurado el envío de emails. Contacta al administrador.'
+            });
+        }
         res.status(500).json({
             success: false,
-            mensaje: 'Error al restablecer la contraseña. Intenta más tarde.',
+            mensaje: 'Error al restablecer la contraseña o enviar el email. Intenta más tarde.',
             error: error.message
         });
     }

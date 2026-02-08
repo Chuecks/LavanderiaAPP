@@ -1,7 +1,6 @@
-# Lavadero - Backend (API + MongoDB + RabbitMQ). Solo necesitás Docker; no instalar Node/Mongo/RabbitMQ.
-# Uso: docker compose up -d
-# API: http://localhost:4000   Diagnóstico: http://localhost:4000/api/debug/db
-# Con web incluida: docker compose -f docker-compose.full.yml up -d  → también http://localhost
+# Lavadero - Backend + MongoDB + RabbitMQ + Web (todo en Docker)
+# Uso: docker compose -f docker-compose.full.yml up -d
+# API: http://localhost:4000   Web: http://localhost
 
 services:
   backend:
@@ -15,10 +14,8 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      # Importante: en Docker la DB es "mongo". No quitar; si .env tiene localhost, aquí se sobrescribe.
       MONGODB_URI: mongodb://mongo:27017/lavadero
       RABBITMQ_URL: amqp://rabbitmq:5672
-      # Email: configurar EMAIL_USER, EMAIL_PASS, EMAIL_DESTINO en Back end/.env
     env_file:
       - ./Back end/.env
     depends_on:
@@ -52,6 +49,19 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - lavadero-net
+
+  web:
+    build:
+      context: ./Front end
+      dockerfile: Dockerfile
+    container_name: lavadero-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     networks:
       - lavadero-net
 

@@ -141,10 +141,7 @@ const iniciarConsumidorEmail = async (intento = 1) => {
                 console.log(`🔄 Reintentando en 5 segundos...`);
                 setTimeout(() => iniciarConsumidorEmail(intento + 1), 5000);
             } else {
-                console.log('⚠️ Máximo de intentos alcanzado. Consumidor de emails desactivado.');
-                console.log('⚠️ Los pedidos se crearán pero no se enviarán emails automáticamente.');
-                console.log('💡 Para activar los emails, instala y ejecuta RabbitMQ.');
-                console.log('📖 Ver instrucciones en: Back end/INSTALACION_RABBITMQ.md');
+                console.log('⚠️ RabbitMQ no disponible. Los emails de pedidos y contraseña se envían igual por SMTP desde el backend.');
             }
         }
     }

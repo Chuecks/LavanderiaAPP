@@ -1,11 +1,8 @@
 // Configuración de la API
-// En dispositivo físico (Android/iOS con Expo Go) la app debe apuntar a la IP de tu PC, no a localhost.
-// Si ves "No se pudo conectar al servidor":
-//   1) Backend corriendo: en carpeta Back end → npm run dev
-//   2) IP correcta: en Windows ejecuta "ipconfig" y usa la IPv4 de tu Wi‑Fi (ej: 192.168.1.15)
-//   3) Celular y PC en la MISMA red Wi‑Fi (router). No uses el hotspot del celular: el celular no suele poder conectar a la PC cuando la PC se conecta al hotspot.
-//   4) Firewall: permitir Node.js o el puerto 4000
-const IP_PC = '192.168.1.11';  // ← Cambia por TU IPv4 (ipconfig en Windows, con la PC en ese Wi‑Fi)
+// Desarrollo: IP de la máquina donde CORRE EL BACKEND (puede ser esta PC o otra en la misma red).
+// Producción (build Play Store): URL de la VM/servidor público.
+const IP_BACKEND = '192.168.1.25';  // ← Desarrollo: IPv4 de la PC donde está docker compose (ipconfig en esa PC)
+const PRODUCTION_API_URL = 'http://TU_IP_VM:4000/api';  // ← Producción: IP o dominio de la VM
 
 import { Platform } from 'react-native';
 
@@ -15,15 +12,13 @@ if (__DEV__) {
   if (Platform.OS === 'web') {
     API_BASE_URL = 'http://localhost:4000/api';
   } else if (Platform.OS === 'ios') {
-    // Simulador: localhost. Dispositivo físico: IP de la PC
-    API_BASE_URL = `http://${IP_PC}:4000/api`;
+    API_BASE_URL = `http://${IP_BACKEND}:4000/api`;
   } else {
-    // Android: Emulador usa 10.0.2.2; dispositivo físico usa IP de la PC
-    API_BASE_URL = `http://${IP_PC}:4000/api`;
+    API_BASE_URL = `http://${IP_BACKEND}:4000/api`;
   }
 } else {
-  // En Docker: EXPO_PUBLIC_API_URL=/api (mismo origen, nginx hace proxy). En Vercel/otro: poner la URL de tu API.
-  API_BASE_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) || 'https://tu-api-produccion.com/api';
+  // Build para Play Store: usa la URL de la VM (o EXPO_PUBLIC_API_URL si se define al hacer eas build)
+  API_BASE_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) || PRODUCTION_API_URL;
 }
 
 export default API_BASE_URL;

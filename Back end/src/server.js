@@ -130,6 +130,15 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-    iniciarConsumidorEmail().catch(() => {});
+    // Comprobar configuración de email (pedidos y "olvidé contraseña" la usan)
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        console.log(`📧 Email configurado (${process.env.EMAIL_USER}). Los correos se envían directamente.`);
+    } else {
+        console.warn('⚠️ EMAIL_USER o EMAIL_PASS no configurados. Crea/edita Back end/.env para que lleguen los correos (pedidos y restablecer contraseña).');
+    }
+    // RabbitMQ es opcional: los emails ya se envían desde el backend; el consumidor solo es extra
+    iniciarConsumidorEmail().catch((err) => {
+        console.log('📬 RabbitMQ no disponible (opcional). Los emails de pedidos y contraseña se envían igual por SMTP.');
+    });
 });
 

@@ -245,6 +245,7 @@ const crearPedido = async (req, res) => {
             console.log('✅ Email de nuevo pedido enviado a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
         } catch (emailError) {
             console.error('❌ Error al enviar email de pedido:', emailError.message);
+            if (emailError.response) console.error('   Detalle:', emailError.response);
         }
 
         // Opcional: publicar también a RabbitMQ por si hay consumidor (no bloquea)
