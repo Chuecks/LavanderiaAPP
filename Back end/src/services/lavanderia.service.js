@@ -33,14 +33,27 @@ const getLavanderias = async () => {
 };
 
 /**
+ * Comprueba si una lavandería ofrece un servicio (por nombre).
+ * Si serviciosOfrecidos está vacío o no existe, se considera que ofrece todos.
+ */
+const ofreceServicio = (lav, servicioNombre) => {
+    if (!servicioNombre || typeof servicioNombre !== 'string') return true;
+    const list = lav.serviciosOfrecidos;
+    if (!list || !Array.isArray(list) || list.length === 0) return true;
+    const nombre = servicioNombre.trim();
+    return list.some(s => (s && String(s).trim()) === nombre);
+};
+
+/**
  * Encuentra la lavandería más cercana dentro de maxKm (o null si ninguna está dentro).
- * Si hay varias dentro del radio, devuelve la más cercana.
- * @param {number} lat - Latitud de la dirección de recogida
- * @param {number} lng - Longitud de la dirección de recogida
- * @param {number} maxKm - Radio máximo en km (default 5)
+ * Si servicioNombre se indica, solo se consideran lavanderías que ofrecen ese servicio.
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} maxKm
+ * @param {string} [servicioNombre] - opcional; si se pasa, filtra por lavanderías que lo ofrecen
  * @returns {Promise<{ lavanderia: Object, distanciaKm: number } | null>}
  */
-const getClosestWithinKm = async (lat, lng, maxKm = 5) => {
+const getClosestWithinKm = async (lat, lng, maxKm = 5, servicioNombre = null) => {
     const lavanderias = await getLavanderias();
     if (!lavanderias.length) return null;
 
@@ -49,6 +62,57 @@ const getClosestWithinKm = async (lat, lng, maxKm = 5) => {
 
     for (const lav of lavanderias) {
         if (lav.lat == null || lav.lng == null) continue;
+        if (!ofreceServicio(lav, servicioNombre)) continue;
+        const d = distanciaKm(lat, lng, lav.lat, lav.lng);
+        if (d <= maxKm && d < minDist) {
+            minDist = d;
+            closest = lav;
+        }
+    }
+
+    if (!closest) return null;
+    return { lavanderia: closest, distanciaKm: minDist };
+};
+
+/**
+ * Igual que getClosestWithinKm pero excluyendo una lavandería por _id (p. ej. la que rechazó).
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} maxKm
+ * @param {mongoose.Types.ObjectId} excludeLavanderiaId
+ * @returns {Promise<{ lavanderia: Object, distanciaKm: number } | null>}
+ */
+const getClosestWithinKmExcluding = async (lat, lng, maxKm = 5, excludeLavanderiaId) => {
+    const ids = excludeLavanderiaId ? [excludeLavanderiaId] : [];
+    return getClosestWithinKmExcludingIds(lat, lng, maxKm, ids);
+};
+
+/**
+ * Igual que getClosestWithinKm pero excluyendo varias lavanderías por _id (evita reasignar a quien ya rechazó).
+ * Si servicioNombre se indica, solo se consideran lavanderías que ofrecen ese servicio.
+ * @param {number} lat
+ * @param {number} lng
+ * @param {number} maxKm
+ * @param {mongoose.Types.ObjectId[]} excludeLavanderiaIds
+ * @param {string} [servicioNombre] - opcional; filtra por lavanderías que ofrecen este servicio
+ * @returns {Promise<{ lavanderia: Object, distanciaKm: number } | null>}
+ */
+const getClosestWithinKmExcludingIds = async (lat, lng, maxKm = 5, excludeLavanderiaIds = [], servicioNombre = null) => {
+    const lavanderias = await getLavanderias();
+    if (!lavanderias.length) return null;
+    const excludeSet = new Set(
+        (excludeLavanderiaIds || [])
+            .filter(Boolean)
+            .map(id => (id && id.toString ? id.toString() : String(id)))
+    );
+
+    let closest = null;
+    let minDist = maxKm + 1;
+
+    for (const lav of lavanderias) {
+        if (lav.lat == null || lav.lng == null) continue;
+        if (lav._id && excludeSet.has(lav._id.toString())) continue;
+        if (!ofreceServicio(lav, servicioNombre)) continue;
         const d = distanciaKm(lat, lng, lav.lat, lav.lng);
         if (d <= maxKm && d < minDist) {
             minDist = d;
@@ -82,6 +146,8 @@ const toPedidoEmbed = (lav) => {
 module.exports = {
     getLavanderias,
     getClosestWithinKm,
+    getClosestWithinKmExcluding,
+    getClosestWithinKmExcludingIds,
     distanciaKm,
     toPedidoEmbed
 };

@@ -15,10 +15,20 @@ const usuarioSchema = new mongoose.Schema({
         trim: true,
         match: [/^\S+@\S+\.\S+$/, 'Por favor ingresa un email válido']
     },
+    rol: {
+        type: String,
+        enum: ['usuario', 'lavanderia'],
+        default: 'usuario'
+    },
     telefono: {
         type: String,
-        required: [true, 'El teléfono es obligatorio'],
-        trim: true
+        trim: true,
+        default: ''
+    },
+    direccion: {
+        type: String,
+        trim: true,
+        default: ''
     },
     password: {
         type: String,

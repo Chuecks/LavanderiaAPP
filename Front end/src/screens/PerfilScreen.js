@@ -13,10 +13,10 @@ import {
   TextInput,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { obtenerEstadisticas } from '../services/pedido.service';
 import { cerrarSesion } from '../services/auth.service';
 import { apiRequest } from '../config/api';
 import { useAuth } from '../context/AuthContext';
@@ -24,15 +24,11 @@ import { useAuth } from '../context/AuthContext';
 const EMAIL_SOPORTE = 'lavaderojmm@gmail.com';
 
 export default function PerfilScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
+  const bottomSafe = Math.max(insets.bottom, 20) + 24;
   const { setIsLoggedIn } = useAuth();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [estadisticas, setEstadisticas] = useState({
-    total: 0,
-    pendientes: 0,
-    enProceso: 0,
-    completados: 0
-  });
   const [modalCambiarContrasenaVisible, setModalCambiarContrasenaVisible] = useState(false);
   const [contraseñaActual, setContraseñaActual] = useState('');
   const [nuevaContrasena, setNuevaContrasena] = useState('');
@@ -42,7 +38,6 @@ export default function PerfilScreen({ navigation }) {
 
   useEffect(() => {
     loadUserData();
-    loadEstadisticas();
   }, []);
 
   const loadUserData = async () => {
@@ -55,22 +50,6 @@ export default function PerfilScreen({ navigation }) {
       console.error('Error al cargar datos del usuario:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadEstadisticas = async () => {
-    try {
-      const stats = await obtenerEstadisticas();
-      if (stats && typeof stats === 'object') {
-        setEstadisticas({
-          total: stats.total ?? 0,
-          pendientes: stats.pendientes ?? 0,
-          enProceso: stats.enProceso ?? 0,
-          completados: stats.completados ?? 0
-        });
-      }
-    } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
     }
   };
 
@@ -180,52 +159,106 @@ export default function PerfilScreen({ navigation }) {
     }
   };
 
-  const menuItems = [
-    {
-      icon: 'location-outline',
-      title: 'Mis Direcciones',
-      onPress: () => {
-        const parentNav = navigation.getParent();
-        if (parentNav && parentNav.navigate) {
-          parentNav.navigate('Direcciones');
-        } else {
-          navigation.navigate('Direcciones');
-        }
-      },
-    },
-    {
-      icon: 'document-text-outline',
-      title: 'Mis Pedidos',
-      onPress: () => navigation.navigate('Mis Pedidos'),
-    },
-    {
-      icon: 'notifications-outline',
-      title: 'Notificaciones',
-      onPress: () => Alert.alert('Notificaciones', 'Gestiona tus preferencias de notificaciones'),
-    },
-    {
-      icon: 'key-outline',
-      title: 'Cambiar contraseña',
-      onPress: () => {
-        setContraseñaActual('');
-        setNuevaContrasena('');
-        setRepetirContrasena('');
-        setErrorCambiar('');
-        setModalCambiarContrasenaVisible(true);
-      },
-    },
-    {
-      icon: 'help-circle-outline',
-      title: 'Ayuda y Soporte',
-      onPress: () => {
-        if (Platform.OS !== 'web') {
-          Alert.alert('Ayuda y Soporte', `¿Necesitas ayuda? Escríbenos a:\n\n${EMAIL_SOPORTE}`);
-        } else if (typeof window !== 'undefined') {
-          window.alert(`Ayuda y Soporte\n\nEscríbenos a: ${EMAIL_SOPORTE}`);
-        }
-      },
-    },
-  ];
+  const esLavanderia = userData?.rol === 'lavanderia';
+
+  const menuItems = esLavanderia
+    ? [
+        {
+          icon: 'list-outline',
+          title: 'Pedidos',
+          onPress: () => {
+            const parentNav = navigation?.getParent?.();
+            if (parentNav?.navigate) parentNav.navigate('Pedidos');
+            else navigation?.navigate?.('Pedidos');
+          },
+        },
+        {
+          icon: 'shirt-outline',
+          title: 'Mis servicios',
+          onPress: () => {
+            const parentNav = navigation?.getParent?.();
+            if (parentNav?.navigate) parentNav.navigate('LavanderiaServicios');
+            else navigation?.navigate?.('LavanderiaServicios');
+          },
+        },
+        {
+          icon: 'location-outline',
+          title: 'Mi dirección',
+          onPress: () => {
+            const parentNav = navigation?.getParent?.();
+            if (parentNav?.navigate) parentNav.navigate('LavanderiaDireccion');
+            else navigation?.navigate?.('LavanderiaDireccion');
+          },
+        },
+        {
+          icon: 'key-outline',
+          title: 'Cambiar contraseña',
+          onPress: () => {
+            setContraseñaActual('');
+            setNuevaContrasena('');
+            setRepetirContrasena('');
+            setErrorCambiar('');
+            setModalCambiarContrasenaVisible(true);
+          },
+        },
+        {
+          icon: 'help-circle-outline',
+          title: 'Ayuda y Soporte',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Alert.alert('Ayuda y Soporte', `¿Necesitas ayuda? Escríbenos a:\n\n${EMAIL_SOPORTE}`);
+            } else if (typeof window !== 'undefined') {
+              window.alert(`Ayuda y Soporte\n\nEscríbenos a: ${EMAIL_SOPORTE}`);
+            }
+          },
+        },
+      ]
+    : [
+        {
+          icon: 'location-outline',
+          title: 'Mis Direcciones',
+          onPress: () => {
+            const parentNav = navigation.getParent();
+            if (parentNav && parentNav.navigate) {
+              parentNav.navigate('Direcciones');
+            } else {
+              navigation.navigate('Direcciones');
+            }
+          },
+        },
+        {
+          icon: 'document-text-outline',
+          title: 'Mis Pedidos',
+          onPress: () => navigation.navigate('Mis Pedidos'),
+        },
+        {
+          icon: 'notifications-outline',
+          title: 'Notificaciones',
+          onPress: () => Alert.alert('Notificaciones', 'Gestiona tus preferencias de notificaciones'),
+        },
+        {
+          icon: 'key-outline',
+          title: 'Cambiar contraseña',
+          onPress: () => {
+            setContraseñaActual('');
+            setNuevaContrasena('');
+            setRepetirContrasena('');
+            setErrorCambiar('');
+            setModalCambiarContrasenaVisible(true);
+          },
+        },
+        {
+          icon: 'help-circle-outline',
+          title: 'Ayuda y Soporte',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Alert.alert('Ayuda y Soporte', `¿Necesitas ayuda? Escríbenos a:\n\n${EMAIL_SOPORTE}`);
+            } else if (typeof window !== 'undefined') {
+              window.alert(`Ayuda y Soporte\n\nEscríbenos a: ${EMAIL_SOPORTE}`);
+            }
+          },
+        },
+      ];
 
   if (loading) {
     return (
@@ -240,11 +273,11 @@ export default function PerfilScreen({ navigation }) {
   const userPhone = userData?.telefono || 'Sin teléfono';
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: bottomSafe }}>
       <LinearGradient colors={['#4A90E2', '#357ABD']} style={styles.header}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
-            <Ionicons name="person" size={50} color="#fff" />
+            <Ionicons name="person" size={32} color="#fff" />
           </View>
         </View>
         <Text style={styles.name}>{userName}</Text>
@@ -258,26 +291,6 @@ export default function PerfilScreen({ navigation }) {
       </LinearGradient>
 
       <View style={styles.content}>
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Ionicons name="list" size={24} color="#4A90E2" style={styles.statIcon} />
-            <Text style={styles.statValue}>{estadisticas.total}</Text>
-            <Text style={styles.statLabel}>Pedidos</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="time-outline" size={24} color="#4A90E2" style={styles.statIcon} />
-            <Text style={styles.statValue}>{estadisticas.enProceso}</Text>
-            <Text style={styles.statLabel}>En Proceso</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle-outline" size={24} color="#4A90E2" style={styles.statIcon} />
-            <Text style={styles.statValue}>{estadisticas.completados}</Text>
-            <Text style={styles.statLabel}>Completados</Text>
-          </View>
-        </View>
-
         <View style={styles.menuSection}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
@@ -324,7 +337,7 @@ export default function PerfilScreen({ navigation }) {
           style={styles.modalOverlay}
         >
           <Pressable style={styles.modalBackdrop} onPress={() => setModalCambiarContrasenaVisible(false)} />
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: bottomSafe }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Cambiar contraseña</Text>
               <TouchableOpacity onPress={() => setModalCambiarContrasenaVisible(false)}>
@@ -358,15 +371,27 @@ export default function PerfilScreen({ navigation }) {
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Repetir nueva contraseña *</Text>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Repite la nueva contraseña"
-                placeholderTextColor="#999"
-                value={repetirContrasena}
-                onChangeText={(t) => { setRepetirContrasena(t); setErrorCambiar(''); }}
-                secureTextEntry
-                autoCapitalize="none"
-              />
+              <View style={[
+                styles.modalInputRow,
+                repetirContrasena.length > 0 && nuevaContrasena !== repetirContrasena && styles.modalInputRowError,
+              ]}>
+                <TextInput
+                  style={styles.modalInputFlex}
+                  placeholder="Repite la nueva contraseña"
+                  placeholderTextColor="#999"
+                  value={repetirContrasena}
+                  onChangeText={(t) => { setRepetirContrasena(t); setErrorCambiar(''); }}
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                {repetirContrasena.length > 0 && (
+                  nuevaContrasena === repetirContrasena ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#28a745" style={styles.modalConfirmIcon} />
+                  ) : (
+                    <Ionicons name="close-circle" size={22} color="#E94B3C" style={styles.modalConfirmIcon} />
+                  )
+                )}
+              </View>
             </View>
             {errorCambiar ? (
               <View style={styles.errorCambiarContainer}>
@@ -412,22 +437,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   header: {
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
+    padding: 14,
+    paddingTop: 40,
+    paddingBottom: 18,
     alignItems: 'center',
   },
   avatarContainer: {
-    marginBottom: 15,
+    marginBottom: 8,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: '#fff',
   },
   loadingContainer: {
@@ -437,70 +462,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   name: {
-    fontSize: 24,
+    fontSize: 19,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 5,
+    marginBottom: 3,
   },
   email: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#fff',
     opacity: 0.9,
-    marginBottom: 8,
+    marginBottom: 3,
   },
   phoneContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 2,
   },
   phone: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#fff',
     opacity: 0.9,
     marginLeft: 5,
   },
   content: {
-    padding: 15,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statIcon: {
-    marginBottom: 8,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: '#f0f0f0',
-    marginHorizontal: 10,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4A90E2',
-    marginTop: 5,
-    marginBottom: 5,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
+    padding: 14,
   },
   menuSection: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -512,7 +502,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -528,14 +518,14 @@ const styles = StyleSheet.create({
   logoutButton: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: 16,
     width: '100%',
   },
   logoutButtonGradient: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 18,
+    padding: 16,
     width: '100%',
   },
   logoutIcon: {
@@ -596,6 +586,28 @@ const styles = StyleSheet.create({
     color: '#333',
     borderWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  modalInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  modalInputRowError: {
+    borderColor: '#E94B3C',
+  },
+  modalInputFlex: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+    paddingVertical: 0,
+  },
+  modalConfirmIcon: {
+    marginLeft: 8,
   },
   errorCambiarContainer: {
     flexDirection: 'row',

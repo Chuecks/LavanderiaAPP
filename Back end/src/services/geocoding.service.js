@@ -100,8 +100,22 @@ const construirQuery = (direccion) => {
     return v[0] || '';
 };
 
+/**
+ * Geocodifica un texto libre de dirección (ej. "Bulevar España 2460, Montevideo").
+ * Útil para registro de lavandería con un solo campo dirección.
+ * @param {string} direccionTexto - Dirección en texto libre
+ * @returns {Promise<{ lat: number, lng: number } | null>}
+ */
+const geocodificarTexto = async (direccionTexto) => {
+    const t = trim(direccionTexto);
+    if (!t) return null;
+    const query = t.includes('Uruguay') ? t : `${t}, Uruguay`;
+    return await buscarUna(query);
+};
+
 module.exports = {
     geocodificarDireccion,
+    geocodificarTexto,
     construirQuery,
     REQUEST_DELAY_MS
 };

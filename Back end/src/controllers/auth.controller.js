@@ -1,22 +1,54 @@
 const Usuario = require('../models/usuario.model');
+const Lavanderia = require('../models/lavanderia.model');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { enviarEmailNuevaContrasena } = require('../services/email.service');
+const { geocodificarDireccion } = require('../services/geocoding.service');
 
-// Registro de nuevo usuario (cliente)
+// Registro de nuevo usuario (cliente o lavandería)
 const registro = async (req, res) => {
     try {
-        const { nombre, email, telefono, password } = req.body;
+        const { nombre, email, telefono, password, direccion, rol, serviciosOfrecidos } = req.body;
+        const tipo = (rol || 'usuario').toLowerCase();
 
-        // Validar campos requeridos
-        if (!nombre || !email || !telefono || !password) {
+        if (tipo !== 'usuario' && tipo !== 'lavanderia') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Rol inválido. Debe ser usuario o lavanderia.'
+            });
+        }
+
+        if (!nombre || !email || !password) {
             return res.status(400).json({
                 success: false,
                 mensaje: 'Por favor completa todos los campos requeridos'
             });
         }
 
-        // Verificar si el usuario ya existe por email
+        if (tipo === 'usuario') {
+            if (!telefono || !telefono.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    mensaje: 'El teléfono es requerido para usuarios'
+                });
+            }
+        } else {
+            const d = direccion && typeof direccion === 'object' ? direccion : null;
+            if (!d || !d.calle?.trim() || !d.numeroPuerta?.trim() || !d.ciudad?.trim() || !d.departamento || !d.codigoPostal?.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    mensaje: 'Completa todos los campos de la dirección (calle, n° puerta, ciudad, departamento, código postal)'
+                });
+            }
+            const servicios = Array.isArray(serviciosOfrecidos) ? serviciosOfrecidos.filter(s => typeof s === 'string' && s.trim()) : [];
+            if (servicios.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    mensaje: 'Selecciona al menos un servicio que ofrezca tu lavandería'
+                });
+            }
+        }
+
         const usuarioExistente = await Usuario.findOne({ email: email.toLowerCase() });
         if (usuarioExistente) {
             return res.status(400).json({
@@ -25,25 +57,61 @@ const registro = async (req, res) => {
             });
         }
 
-        // Crear el nuevo usuario (cliente)
-        // telefono: número completo con código de país pegado (ej: +59899123456)
-        // La contraseña se encriptará automáticamente por el middleware pre('save')
-        const telefonoGuardar = (telefono || '').trim();
+        const direccionStr = tipo === 'lavanderia' && direccion && typeof direccion === 'object'
+            ? [direccion.calle, direccion.numeroPuerta, direccion.ciudad, direccion.departamento].filter(Boolean).join(', ')
+            : '';
         const usuario = await Usuario.create({
             nombre: nombre.trim(),
             email: email.toLowerCase().trim(),
-            telefono: telefonoGuardar,
-            password // Se encriptará automáticamente
+            rol: tipo,
+            telefono: tipo === 'usuario' ? (telefono || '').trim() : '',
+            direccion: direccionStr,
+            password
         });
+
+        let lavanderiaCreada = false;
+        if (tipo === 'lavanderia' && direccion && typeof direccion === 'object') {
+            const dirObj = {
+                calle: (direccion.calle || '').trim(),
+                numeroPuerta: (direccion.numeroPuerta || '').trim(),
+                numeroApartamento: (direccion.numeroApartamento || '').trim(),
+                ciudad: (direccion.ciudad || '').trim(),
+                departamento: (direccion.departamento || '').trim(),
+                codigoPostal: (direccion.codigoPostal || '').trim()
+            };
+            const coords = await geocodificarDireccion(dirObj);
+            if (coords && typeof coords.lat === 'number' && typeof coords.lng === 'number') {
+                const servicios = Array.isArray(serviciosOfrecidos)
+                    ? serviciosOfrecidos.filter(s => typeof s === 'string' && s.trim()).map(s => s.trim())
+                    : [];
+                await Lavanderia.create({
+                    nombre: usuario.nombre,
+                    calle: dirObj.calle,
+                    numeroPuerta: dirObj.numeroPuerta,
+                    numeroApartamento: dirObj.numeroApartamento || '',
+                    ciudad: dirObj.ciudad,
+                    departamento: dirObj.departamento,
+                    codigoPostal: dirObj.codigoPostal || '',
+                    lat: coords.lat,
+                    lng: coords.lng,
+                    usuarioId: usuario._id,
+                    serviciosOfrecidos: servicios,
+                });
+                lavanderiaCreada = true;
+            }
+        }
 
         res.status(201).json({
             success: true,
-            mensaje: 'Usuario registrado exitosamente',
+            mensaje: tipo === 'lavanderia' ? 'Lavandería registrada exitosamente' : 'Usuario registrado exitosamente',
             data: {
                 _id: usuario._id,
                 nombre: usuario.nombre,
                 email: usuario.email,
+                rol: usuario.rol,
                 telefono: usuario.telefono,
+                direccion: usuario.direccion,
+                lavanderiaEnLista: lavanderiaCreada,
                 createdAt: usuario.createdAt
             }
         });
@@ -131,7 +199,9 @@ const login = async (req, res) => {
                     _id: usuario._id,
                     nombre: usuario.nombre,
                     email: usuario.email,
+                    rol: usuario.rol || 'usuario',
                     telefono: usuario.telefono,
+                    direccion: usuario.direccion,
                     ultimoAcceso: usuario.ultimoAcceso,
                     createdAt: usuario.createdAt
                 }

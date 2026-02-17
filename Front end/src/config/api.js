@@ -1,8 +1,8 @@
 // Configuración de la API
 // Desarrollo: IP de la máquina donde CORRE EL BACKEND (puede ser esta PC o otra en la misma red).
 // Producción (build Play Store): URL de la VM/servidor público.
-const IP_BACKEND = '192.168.1.25';  // ← Desarrollo: IPv4 de la PC donde está docker compose (ipconfig en esa PC)
-const PRODUCTION_API_URL = 'http://TU_IP_VM:4000/api';  // ← Producción: IP o dominio de la VM
+const IP_BACKEND = '192.168.1.8';  // ← VM Google Cloud (IP estática externa)
+const PRODUCTION_API_URL = 'http://192.168.1.8:4000/api';  // ← Producción: build Play Store
 
 import { Platform } from 'react-native';
 
@@ -17,8 +17,8 @@ if (__DEV__) {
     API_BASE_URL = `http://${IP_BACKEND}:4000/api`;
   }
 } else {
-  // Build para Play Store: usa la URL de la VM (o EXPO_PUBLIC_API_URL si se define al hacer eas build)
-  API_BASE_URL = (typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_API_URL) || PRODUCTION_API_URL;
+  // APK / producción: siempre esta URL (misma que Expo Go en dispositivo)
+  API_BASE_URL = PRODUCTION_API_URL;
 }
 
 export default API_BASE_URL;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,20 +9,51 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  BackHandler,
 } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AppLogo from '../components/AppLogo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiRequest } from '../config/api';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginScreen({ navigation }) {
-  const { setIsLoggedIn } = useAuth();
+const NAV_BAR_BLUE = '#357ABD';
+
+export default function LoginScreen({ navigation, route }) {
+  const { setIsLoggedIn, setUserData } = useAuth();
+  const [tipoCuenta, setTipoCuenta] = useState(route.params?.tipo ?? null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setBackgroundColorAsync(NAV_BAR_BLUE);
+    NavigationBar.setButtonStyleAsync('light');
+    return () => {
+      NavigationBar.setBackgroundColorAsync('#ffffff');
+      NavigationBar.setButtonStyleAsync('dark');
+    };
+  }, []);
+
+  // Botón atrás de Android: si hay tipo elegido, volver a la pantalla de elegir; si no, dejar que cierre/salga
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const onBack = () => {
+      if (tipoCuenta !== null) {
+        setTipoCuenta(null);
+        setError('');
+        return true;
+      }
+      return false;
+    };
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBack);
+    return () => subscription.remove();
+  }, [tipoCuenta]);
 
   const handleLogin = async () => {
     // Limpiar error anterior
@@ -43,16 +74,17 @@ export default function LoginScreen({ navigation }) {
       });
 
       if (response.success && response.data.token) {
-        // Guardar el token en AsyncStorage
+        const usuario = response.data.usuario;
         await AsyncStorage.setItem('authToken', response.data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(response.data.usuario));
+        await AsyncStorage.setItem('userData', JSON.stringify(usuario));
+        if (typeof setUserData === 'function') setUserData(usuario);
 
-        // Limpiar campos y error
         setEmail('');
         setPassword('');
         setError('');
-        
-        if (typeof setIsLoggedIn === 'function') setIsLoggedIn(true);
+        if (typeof setIsLoggedIn === 'function') {
+          setTimeout(() => setIsLoggedIn(true), 200);
+        }
       } else {
         setError('Error al iniciar sesión. Por favor intenta nuevamente.');
       }
@@ -91,13 +123,55 @@ export default function LoginScreen({ navigation }) {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
+          {tipoCuenta !== null && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => { setTipoCuenta(null); setError(''); }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+              <Text style={styles.backButtonText}>Atrás</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.iconContainer}>
-            <Ionicons name="shirt" size={80} color="#fff" />
+            <AppLogo size={200} />
           </View>
           
           <Text style={styles.title}>Lavadero App</Text>
           <Text style={styles.subtitle}>Gestiona tus Lavados fácilmente</Text>
 
+          {tipoCuenta === null ? (
+            <View style={styles.tipoButtonsWrap}>
+              <Text style={styles.tipoLabel}>¿Cómo quieres acceder?</Text>
+              <TouchableOpacity
+                style={styles.tipoButton}
+                onPress={() => setTipoCuenta('usuario')}
+              >
+                <Ionicons name="person" size={28} color="#4A90E2" />
+                <View style={styles.tipoButtonTextWrap}>
+                  <Text style={styles.tipoButtonText}>Usuarios</Text>
+                  <Text style={styles.tipoButtonHint}>Clientes que hacen pedidos</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.tipoButton}
+                onPress={() => setTipoCuenta('lavanderia')}
+              >
+                <Ionicons name="business" size={28} color="#4A90E2" />
+                <View style={styles.tipoButtonTextWrap}>
+                  <Text style={styles.tipoButtonText}>Lavanderías</Text>
+                  <Text style={styles.tipoButtonHint}>Negocios que reciben pedidos</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.registerLink}
+                onPress={() => navigation?.navigate('Register')}
+              >
+                <Text style={styles.registerLinkText}>
+                  ¿No tienes cuenta? <Text style={styles.registerLinkBold}>Regístrate</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
           <View style={styles.form}>
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
@@ -180,13 +254,14 @@ export default function LoginScreen({ navigation }) {
 
             <TouchableOpacity
               style={styles.registerLink}
-              onPress={() => navigation?.navigate('Register')}
+              onPress={() => navigation?.navigate('Register', { tipo: tipoCuenta })}
             >
               <Text style={styles.registerLinkText}>
                 ¿No tienes cuenta? <Text style={styles.registerLinkBold}>Regístrate</Text>
               </Text>
             </TouchableOpacity>
           </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -208,20 +283,71 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
   iconContainer: {
-    marginBottom: 20,
+    marginBottom: 4,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 16,
     color: '#fff',
     opacity: 0.9,
-    marginBottom: 40,
+    marginBottom: 12,
+  },
+  tipoButtonsWrap: {
+    width: '100%',
+    maxWidth: 400,
+    marginTop: 8,
+  },
+  tipoLabel: {
+    fontSize: 16,
+    color: '#fff',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  tipoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 18,
+    marginBottom: 14,
+  },
+  tipoButtonTextWrap: {
+    marginLeft: 14,
+    flex: 1,
+  },
+  tipoButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  tipoButtonHint: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   form: {
     width: '100%',

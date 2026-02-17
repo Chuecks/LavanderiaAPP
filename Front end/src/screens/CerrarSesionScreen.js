@@ -13,7 +13,7 @@ import { cerrarSesion } from '../services/auth.service';
 import { useAuth } from '../context/AuthContext';
 
 export default function CerrarSesionScreen({ route, navigation }) {
-  const { setIsLoggedIn } = useAuth();
+  const { setIsLoggedIn, setUserData } = useAuth();
   const [procesando, setProcesando] = useState(true);
   const [error, setError] = useState(null);
 
@@ -69,7 +69,7 @@ export default function CerrarSesionScreen({ route, navigation }) {
 
   const cerrarSesionYRedirigir = () => {
     try {
-      // Cambiar estado de login - esto hará que App.js navegue a LoginScreen
+      if (typeof setUserData === 'function') setUserData(null);
       if (setIsLoggedIn) {
         setIsLoggedIn(false);
       } else {

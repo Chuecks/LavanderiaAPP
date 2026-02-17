@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,6 +48,9 @@ import PedidoConfirmadoScreen from './src/screens/PedidoConfirmadoScreen';
 import PedidoNoViableScreen from './src/screens/PedidoNoViableScreen';
 import CerrarSesionScreen from './src/screens/CerrarSesionScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
+import LavanderiaPedidosScreen from './src/screens/lavanderia/LavanderiaPedidosScreen';
+import LavanderiaServiciosScreen from './src/screens/lavanderia/LavanderiaServiciosScreen';
+import LavanderiaDireccionScreen from './src/screens/lavanderia/LavanderiaDireccionScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -80,52 +84,70 @@ function MainTabs() {
   );
 }
 
+function LavanderiaTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName = 'ellipse-outline';
+          if (route?.name === 'Pedidos') iconName = focused ? 'list' : 'list-outline';
+          else if (route?.name === 'Perfil') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#4A90E2',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Pedidos" component={LavanderiaPedidosScreen} options={{ title: 'Pedidos' }} />
+      <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: 'Perfil' }} />
+    </Tab.Navigator>
+  );
+}
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar si hay un token guardado al iniciar la app
     checkAuthToken();
   }, []);
 
   const checkAuthToken = async () => {
-    // En web, si la verificación tarda o falla, no quedarse en loading para siempre
     const loadingTimeout = Platform.OS === 'web' ? setTimeout(() => {
       setIsLoading(false);
     }, 5000) : null;
 
     try {
-      // Opción temporal: descomenta la siguiente línea para borrar sesión y ver Login al abrir la app. Luego coméntala de nuevo.
-      // await AsyncStorage.multiRemove(['authToken', 'userData']);
-
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
-        // Verificar si el token es válido con el backend
         try {
           const { apiRequest } = require('./src/config/api');
           const response = await apiRequest('/auth/verificar', 'GET', null, token);
-          
           if (response.success && response.data.usuario) {
-            // Token válido, actualizar datos del usuario
-            await AsyncStorage.setItem('userData', JSON.stringify(response.data.usuario));
+            const usuario = response.data.usuario;
+            await AsyncStorage.setItem('userData', JSON.stringify(usuario));
+            setUserData(usuario);
             setIsLoggedIn(true);
           } else {
-            // Token inválido, limpiar
             await AsyncStorage.multiRemove(['authToken', 'userData']);
+            setUserData(null);
             setIsLoggedIn(false);
           }
         } catch (verifyError) {
           console.error('Error al verificar token:', verifyError);
-          // Si falla la verificación, limpiar y cerrar sesión
           await AsyncStorage.multiRemove(['authToken', 'userData']);
+          setUserData(null);
           setIsLoggedIn(false);
         }
       } else {
+        setUserData(null);
         setIsLoggedIn(false);
       }
     } catch (error) {
       console.error('Error al verificar token:', error);
+      setUserData(null);
       setIsLoggedIn(false);
     } finally {
       if (loadingTimeout) clearTimeout(loadingTimeout);
@@ -149,12 +171,13 @@ export default function App() {
 
   return (
     <AppErrorBoundary>
+    <SafeAreaProvider>
     <View style={rootStyle}>
-    <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn }}>
+    <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn, userData, setUserData }}>
     <NavigationContainer>
       <StatusBar style="light" />
       <Stack.Navigator
-        key={isLoggedIn ? 'logged-in' : 'logged-out'}
+        key={isLoggedIn ? (userData?.rol === 'lavanderia' ? 'lavanderia' : 'user') : 'logged-out'}
         initialRouteName="Login"
         screenOptions={{
           headerShown: false,
@@ -167,6 +190,14 @@ export default function App() {
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="OlvideContrasena" component={OlvideContrasenaScreen} />
             <Stack.Screen name="RegistroExitoso" component={RegistroExitosoScreen} />
+          </>
+        ) : userData?.rol === 'lavanderia' ? (
+          <>
+            <Stack.Screen name="LavanderiaTabs" component={LavanderiaTabs} />
+            <Stack.Screen name="LavanderiaServicios" component={LavanderiaServiciosScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="LavanderiaDireccion" component={LavanderiaDireccionScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CerrarSesion" component={CerrarSesionScreen} />
+            <Stack.Screen name="ContrasenaCambiada" component={ContrasenaCambiadaScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
@@ -184,6 +215,7 @@ export default function App() {
     </NavigationContainer>
     </AuthContext.Provider>
     </View>
+    </SafeAreaProvider>
     </AppErrorBoundary>
   );
 }

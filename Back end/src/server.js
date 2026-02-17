@@ -15,6 +15,8 @@ require('./models/pedido.model');
 const authRoutes = require('./routes/auth.routes');
 const direccionRoutes = require('./routes/direccion.routes');
 const pedidoRoutes = require('./routes/pedido.routes');
+const servicioRoutes = require('./routes/servicio.routes');
+const lavanderiaRoutes = require('./routes/lavanderia.routes');
 
 const app = express();
 
@@ -80,6 +82,8 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/direcciones', direccionRoutes);
 app.use('/api/pedidos', pedidoRoutes);
+app.use('/api/servicios', servicioRoutes);
+app.use('/api/lavanderia', lavanderiaRoutes);
 
 // Ruta de prueba
 app.get('/api/health', (req, res) => {

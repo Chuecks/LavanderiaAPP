@@ -1,7 +1,9 @@
 const Pedido = require('../models/pedido.model');
+const Lavanderia = require('../models/lavanderia.model');
+const Usuario = require('../models/usuario.model');
 const { enviarEmailPedido } = require('../services/email.service');
 const { geocodificarDireccion } = require('../services/geocoding.service');
-const { getClosestWithinKm, toPedidoEmbed, distanciaKm } = require('../services/lavanderia.service');
+const { getClosestWithinKm, getClosestWithinKmExcluding, getClosestWithinKmExcludingIds, toPedidoEmbed, distanciaKm } = require('../services/lavanderia.service');
 const RADIO_KM = 5;
 const MIN_HORAS_ENTRE_RECOGIDA_Y_ENTREGA = 3;
 
@@ -43,10 +45,10 @@ function validarHorarios(horarioRecogida, horarioEntrega) {
     if (!recogida || !entrega) return { ok: false, mensaje: 'No se pudieron interpretar los horarios. Revisa el formato.' };
     const ahora = new Date();
     if (recogida.getTime() < ahora.getTime() + UNA_HORA_MS) {
-        return { ok: false, mensaje: 'El horario de recogida debe ser al menos 1 hora despu├⌐s de ahora.' };
+        return { ok: false, mensaje: 'El horario de recogida debe ser al menos 1 hora después de ahora.' };
     }
     if (entrega.getTime() < ahora.getTime() + UNA_HORA_MS) {
-        return { ok: false, mensaje: 'El horario de entrega debe ser al menos 1 hora despu├⌐s de ahora.' };
+        return { ok: false, mensaje: 'El horario de entrega debe ser al menos 1 hora después de ahora.' };
     }
     if (recogida.getTime() >= entrega.getTime()) {
         return { ok: false, mensaje: 'El horario de entrega debe ser posterior al de recogida.' };
@@ -65,7 +67,7 @@ const obtenerPedidos = async (req, res) => {
         const { estado } = req.query;
         
         const filtro = { usuario: req.usuario._id };
-        if (estado && ['pendiente', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
+        if (estado && ['pendiente', 'confirmado', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
             filtro.estado = estado;
         }
 
@@ -151,17 +153,20 @@ const crearPedido = async (req, res) => {
         if (!coordsRecogida) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No se pudo verificar la direcci├│n de recogida. Revisa que la direcci├│n sea correcta.',
+                mensaje: 'No se pudo verificar la dirección de recogida. Revisa que la dirección sea correcta.',
                 codigo: 'DIRECCION_NO_GEOCOCODIFICADA'
             });
         }
 
-        // Buscar lavander├¡a m├ís cercana dentro de RADIO_KM (recogida)
-        const resultado = await getClosestWithinKm(coordsRecogida.lat, coordsRecogida.lng, RADIO_KM);
+        // Buscar lavandería más cercana dentro de RADIO_KM que ofrezca el servicio solicitado
+        const nombreServicio = servicio && typeof servicio.nombre === 'string' ? servicio.nombre.trim() : null;
+        const resultado = await getClosestWithinKm(coordsRecogida.lat, coordsRecogida.lng, RADIO_KM, nombreServicio);
         if (!resultado) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No hay ninguna lavander├¡a a menos de 5 km de tu direcci├│n de recogida. No podemos tomar tu pedido en esta zona.',
+                mensaje: nombreServicio
+                    ? 'No hay lavanderías a menos de 5 km que ofrezcan el servicio solicitado.'
+                    : 'No hay ninguna lavandería a menos de 5 km de tu dirección de recogida. No podemos tomar tu pedido en esta zona.',
                 codigo: 'NO_LAVANDERIA_CERCANA'
             });
         }
@@ -173,7 +178,7 @@ const crearPedido = async (req, res) => {
         if (!coordsEntrega) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'No se pudo verificar la direcci├│n de entrega. Revisa que la direcci├│n sea correcta.',
+                mensaje: 'No se pudo verificar la dirección de entrega. Revisa que la dirección sea correcta.',
                 codigo: 'DIRECCION_ENTREGA_NO_GEOCOCODIFICADA'
             });
         }
@@ -181,7 +186,7 @@ const crearPedido = async (req, res) => {
         if (distEntregaLavanderia > RADIO_KM) {
             return res.status(400).json({
                 success: false,
-                mensaje: `La direcci├│n de entrega est├í a m├ís de 5 km de la lavander├¡a asignada (${lavanderia.nombre}). No podemos entregar en esa zona.`,
+                mensaje: `La dirección de entrega está a más de 5 km de la lavandería asignada (${lavanderia.nombre}). No podemos entregar en esa zona.`,
                 codigo: 'ENTREGA_FUERA_DE_RANGO'
             });
         }
@@ -215,6 +220,7 @@ const crearPedido = async (req, res) => {
             horarioEntrega,
             notas: notas || '',
             lavanderia: lavanderiaEmbed,
+            lavanderiaId: lavanderia._id,
             estado: 'pendiente'
         });
 
@@ -229,11 +235,17 @@ const crearPedido = async (req, res) => {
             telefono: req.usuario.telefono
         };
 
-        // Envio directo por SMTP (igual que olvide contrasena, sin RabbitMQ)
+        // Enviar email a la lavandería asignada (solicitud de pedido)
         try {
-            console.log('Enviando email de pedido a', process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
-            await enviarEmailPedido(pedidoPlano);
-            console.log('Email de nuevo pedido enviado OK');
+            const lavanderiaDoc = await Lavanderia.findById(lavanderia._id);
+            let emailLavanderia = null;
+            if (lavanderiaDoc && lavanderiaDoc.usuarioId) {
+                const usuarioLavanderia = await Usuario.findById(lavanderiaDoc.usuarioId).select('email').lean();
+                if (usuarioLavanderia && usuarioLavanderia.email) emailLavanderia = usuarioLavanderia.email;
+            }
+            console.log('Enviando solicitud de pedido a lavandería:', emailLavanderia || process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
+            await enviarEmailPedido(pedidoPlano, emailLavanderia);
+            console.log('Email de solicitud de pedido enviado OK');
         } catch (emailError) {
             console.error('Error al enviar email de pedido:', emailError.message);
             if (emailError.stack) console.error(emailError.stack);
@@ -259,10 +271,10 @@ const actualizarEstadoPedido = async (req, res) => {
     try {
         const { estado } = req.body;
 
-        if (!['pendiente', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
+        if (!['pendiente', 'confirmado', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
             return res.status(400).json({
                 success: false,
-                mensaje: 'Estado inv├ílido'
+                mensaje: 'Estado inválido'
             });
         }
 
@@ -305,9 +317,10 @@ const obtenerEstadisticas = async (req, res) => {
     try {
         const usuarioId = req.usuario._id;
 
-        const [total, pendientes, enProceso, completados] = await Promise.all([
+        const [total, pendientes, confirmados, enProceso, completados] = await Promise.all([
             Pedido.countDocuments({ usuario: usuarioId }),
             Pedido.countDocuments({ usuario: usuarioId, estado: 'pendiente' }),
+            Pedido.countDocuments({ usuario: usuarioId, estado: 'confirmado' }),
             Pedido.countDocuments({ usuario: usuarioId, estado: 'en_proceso' }),
             Pedido.countDocuments({ usuario: usuarioId, estado: 'completado' })
         ]);
@@ -317,15 +330,410 @@ const obtenerEstadisticas = async (req, res) => {
             data: {
                 total,
                 pendientes,
+                confirmados,
                 enProceso,
                 completados
             }
         });
     } catch (error) {
-        console.error('Error al obtener estad├¡sticas:', error);
+        console.error('Error al obtener estadísticas:', error);
         res.status(500).json({
             success: false,
-            mensaje: 'Error al obtener estad├¡sticas',
+            mensaje: 'Error al obtener estadísticas',
+            error: error.message
+        });
+    }
+};
+
+// ----- Lavandería: pedidos asignados a esta lavandería -----
+
+// Listar pedidos de la lavandería (solo usuario con rol lavanderia)
+const listarPedidosLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden ver sus pedidos'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const { estado } = req.query;
+        const filtro = { lavanderiaId: lavanderia._id };
+        if (estado && ['pendiente', 'confirmado', 'en_proceso', 'completado', 'cancelado'].includes(estado)) {
+            filtro.estado = estado;
+        }
+        const pedidos = await Pedido.find(filtro)
+            .sort({ createdAt: -1 })
+            .populate('usuario', 'nombre email telefono');
+        res.json({
+            success: true,
+            data: pedidos
+        });
+    } catch (error) {
+        console.error('Error al listar pedidos de lavandería:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al listar pedidos',
+            error: error.message
+        });
+    }
+};
+
+// Aceptar pedido (lavandería): pasa de pendiente a confirmado
+const aceptarPedidoLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden aceptar pedidos'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            lavanderiaId: lavanderia._id
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado o no asignado a esta lavandería'
+            });
+        }
+        if (pedido.estado !== 'pendiente') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Solo se pueden aceptar pedidos en estado pendiente'
+            });
+        }
+        pedido.estado = 'confirmado';
+        await pedido.save();
+        res.json({
+            success: true,
+            mensaje: 'Pedido aceptado. El cliente lo verá como confirmado.',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al aceptar pedido:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al aceptar pedido',
+            error: error.message
+        });
+    }
+};
+
+// Rechazar pedido (lavandería): pasa a cancelado
+const rechazarPedidoLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden rechazar pedidos'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            lavanderiaId: lavanderia._id
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado o no asignado a esta lavandería'
+            });
+        }
+        if (pedido.estado !== 'pendiente') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Solo se pueden rechazar pedidos en estado pendiente'
+            });
+        }
+        pedido.estado = 'cancelado';
+        pedido.rechazadoPorLavanderia = true;
+        if (!pedido.rechazadoPorLavanderias) pedido.rechazadoPorLavanderias = [];
+        const idStr = lavanderia._id.toString();
+        if (!pedido.rechazadoPorLavanderias.some(id => id.toString() === idStr)) {
+            pedido.rechazadoPorLavanderias.push(lavanderia._id);
+        }
+        await pedido.save();
+        res.json({
+            success: true,
+            mensaje: 'Pedido rechazado',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al rechazar pedido:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al rechazar pedido',
+            error: error.message
+        });
+    }
+};
+
+// Cancelar pedido (lavandería): confirmado o en_proceso -> cancelado; el usuario ve aviso como con rechazo
+const cancelarPedidoLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden cancelar pedidos'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            lavanderiaId: lavanderia._id
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado o no asignado a esta lavandería'
+            });
+        }
+        if (pedido.estado !== 'confirmado' && pedido.estado !== 'en_proceso') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Solo se pueden cancelar pedidos confirmados o en proceso'
+            });
+        }
+        pedido.estado = 'cancelado';
+        pedido.rechazadoPorLavanderia = true;
+        if (!pedido.rechazadoPorLavanderias) pedido.rechazadoPorLavanderias = [];
+        const idStr = lavanderia._id.toString();
+        if (!pedido.rechazadoPorLavanderias.some(id => id.toString() === idStr)) {
+            pedido.rechazadoPorLavanderias.push(lavanderia._id);
+        }
+        await pedido.save();
+        res.json({
+            success: true,
+            mensaje: 'Pedido cancelado',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al cancelar pedido:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al cancelar pedido',
+            error: error.message
+        });
+    }
+};
+
+// Pasar pedido a "en proceso" (lavandería): confirmado -> en_proceso
+const pasarAEnProcesoLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden usar esta acción'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            lavanderiaId: lavanderia._id
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado o no asignado a esta lavandería'
+            });
+        }
+        if (pedido.estado !== 'confirmado') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Solo se puede pasar a en proceso un pedido confirmado'
+            });
+        }
+        pedido.estado = 'en_proceso';
+        await pedido.save();
+        res.json({
+            success: true,
+            mensaje: 'Pedido en proceso. El cliente lo verá en "En proceso".',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al pasar pedido a en proceso:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al actualizar el pedido',
+            error: error.message
+        });
+    }
+};
+
+// Marcar pedido como completado (lavandería): en_proceso -> completado
+const pasarACompletadoLavanderia = async (req, res) => {
+    try {
+        if (req.usuario.rol !== 'lavanderia') {
+            return res.status(403).json({
+                success: false,
+                mensaje: 'Solo las lavanderías pueden usar esta acción'
+            });
+        }
+        const lavanderia = await Lavanderia.findOne({ usuarioId: req.usuario._id });
+        if (!lavanderia) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Lavandería no encontrada para este usuario'
+            });
+        }
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            lavanderiaId: lavanderia._id
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado o no asignado a esta lavandería'
+            });
+        }
+        if (pedido.estado !== 'en_proceso') {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Solo se puede completar un pedido que está en proceso'
+            });
+        }
+        pedido.estado = 'completado';
+        pedido.fechaCompletado = new Date();
+        await pedido.save();
+        res.json({
+            success: true,
+            mensaje: 'Pedido completado.',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al completar pedido:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al actualizar el pedido',
+            error: error.message
+        });
+    }
+};
+
+// Reasignar pedido rechazado por lavandería a la siguiente lavandería más cercana (usuario)
+const reasignarPedidoRechazado = async (req, res) => {
+    try {
+        const pedido = await Pedido.findOne({
+            _id: req.params.id,
+            usuario: req.usuario._id,
+            estado: 'cancelado'
+        });
+        if (!pedido) {
+            return res.status(404).json({
+                success: false,
+                mensaje: 'Pedido no encontrado'
+            });
+        }
+        if (!pedido.rechazadoPorLavanderia) {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Este pedido no fue rechazado por una lavandería'
+            });
+        }
+        const coordsRecogida = await geocodificarDireccion(pedido.direccionRecogida);
+        if (!coordsRecogida) {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'No se pudo verificar la dirección de recogida.',
+                codigo: 'DIRECCION_NO_GEOCOCODIFICADA'
+            });
+        }
+        // Excluir todas las lavanderías que ya rechazaron este pedido (evita bucle entre las 2 más cercanas)
+        const idsExcluir = [...(pedido.rechazadoPorLavanderias || [])];
+        if (pedido.lavanderiaId && !idsExcluir.some(id => id.toString() === pedido.lavanderiaId.toString())) {
+            idsExcluir.push(pedido.lavanderiaId);
+        }
+        const nombreServicio = pedido.servicio && typeof pedido.servicio.nombre === 'string' ? pedido.servicio.nombre.trim() : null;
+        const resultado = await getClosestWithinKmExcludingIds(
+            coordsRecogida.lat,
+            coordsRecogida.lng,
+            RADIO_KM,
+            idsExcluir,
+            nombreServicio
+        );
+        if (!resultado) {
+            return res.status(400).json({
+                success: false,
+                mensaje: nombreServicio
+                    ? 'No hay otra lavandería cercana que ofrezca el servicio de este pedido.'
+                    : 'No se pudo realizar el pedido: no hay otra lavandería cercana disponible.',
+                codigo: 'NO_OTRA_LAVANDERIA_CERCANA'
+            });
+        }
+        const lavanderia = resultado.lavanderia;
+        const lavanderiaEmbed = toPedidoEmbed(lavanderia);
+        pedido.lavanderia = lavanderiaEmbed;
+        pedido.lavanderiaId = lavanderia._id;
+        pedido.estado = 'pendiente';
+        pedido.rechazadoPorLavanderia = false;
+        await pedido.save();
+
+        // Enviar solicitud por email a la nueva lavandería (igual que al crear pedido)
+        try {
+            const pedidoPlano = pedido.toObject ? pedido.toObject() : JSON.parse(JSON.stringify(pedido));
+            pedidoPlano.id = (pedidoPlano._id && pedidoPlano._id.toString) ? pedidoPlano._id.toString() : String(pedidoPlano._id);
+            pedidoPlano.usuario = {
+                nombre: req.usuario.nombre,
+                email: req.usuario.email,
+                telefono: req.usuario.telefono
+            };
+            let emailLavanderia = null;
+            const lavanderiaDoc = await Lavanderia.findById(lavanderia._id);
+            if (lavanderiaDoc && lavanderiaDoc.usuarioId) {
+                const usuarioLavanderia = await Usuario.findById(lavanderiaDoc.usuarioId).select('email').lean();
+                if (usuarioLavanderia && usuarioLavanderia.email) emailLavanderia = usuarioLavanderia.email;
+            }
+            console.log('Enviando solicitud de pedido reasignado a lavandería:', emailLavanderia || process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
+            await enviarEmailPedido(pedidoPlano, emailLavanderia);
+            console.log('Email de solicitud de pedido reasignado enviado OK');
+        } catch (emailError) {
+            console.error('Error al enviar email de pedido reasignado:', emailError.message);
+            if (emailError.stack) console.error(emailError.stack);
+        }
+
+        res.json({
+            success: true,
+            mensaje: 'Pedido reasignado a otra lavandería. Aparecerá como pendiente para que la acepten.',
+            data: pedido
+        });
+    } catch (error) {
+        console.error('Error al reasignar pedido:', error);
+        res.status(500).json({
+            success: false,
+            mensaje: 'Error al reasignar el pedido',
             error: error.message
         });
     }
@@ -336,5 +744,12 @@ module.exports = {
     obtenerPedido,
     crearPedido,
     actualizarEstadoPedido,
-    obtenerEstadisticas
+    obtenerEstadisticas,
+    listarPedidosLavanderia,
+    aceptarPedidoLavanderia,
+    rechazarPedidoLavanderia,
+    pasarAEnProcesoLavanderia,
+    pasarACompletadoLavanderia,
+    reasignarPedidoRechazado,
+    cancelarPedidoLavanderia
 };

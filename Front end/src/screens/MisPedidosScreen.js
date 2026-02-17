@@ -14,16 +14,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { obtenerPedidos } from '../services/pedido.service';
 import { useFocusEffect } from '@react-navigation/native';
 
-export default function MisPedidosScreen({ navigation }) {
+export default function MisPedidosScreen({ navigation, route }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState(null);
-  const [filter, setFilter] = useState('Todos'); // Todos, Pendiente, En Proceso, Completado
+  const [filter, setFilter] = useState(route?.params?.initialFilter ?? 'Todos'); // Todos, Pendiente, Confirmado, En Proceso, Completado
 
   useEffect(() => {
     loadPedidos();
   }, []);
+
+  // Aplicar filtro cuando se navega desde Home con initialFilter (ej. al tocar Pendientes, Confirmados, etc.)
+  useEffect(() => {
+    const initial = route?.params?.initialFilter;
+    if (initial && ['Todos', 'Pendiente', 'Confirmado', 'En Proceso', 'Completado'].includes(initial)) {
+      setFilter(initial);
+    }
+  }, [route?.params?.initialFilter]);
 
   // Recargar pedidos cuando la pantalla recibe foco
   useFocusEffect(
@@ -61,6 +69,7 @@ export default function MisPedidosScreen({ navigation }) {
   const mapearEstado = (estado) => {
     const estados = {
       'pendiente': 'Pendiente',
+      'confirmado': 'Confirmado',
       'en_proceso': 'En Proceso',
       'completado': 'Completado',
       'cancelado': 'Cancelado'
@@ -72,6 +81,7 @@ export default function MisPedidosScreen({ navigation }) {
     switch (estado) {
       case 'Completado':
         return '#50C878';
+      case 'Confirmado':
       case 'En Proceso':
         return '#F5A623';
       case 'Pendiente':
@@ -85,6 +95,7 @@ export default function MisPedidosScreen({ navigation }) {
     switch (estado) {
       case 'Completado':
         return 'checkmark-circle';
+      case 'Confirmado':
       case 'En Proceso':
         return 'time';
       case 'Pendiente':
@@ -140,7 +151,7 @@ export default function MisPedidosScreen({ navigation }) {
       {/* Filtros */}
       <View style={styles.filtersContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {['Todos', 'Pendiente', 'En Proceso', 'Completado'].map((filtro) => (
+          {['Todos', 'Pendiente', 'Confirmado', 'En Proceso', 'Completado'].map((filtro) => (
             <TouchableOpacity
               key={filtro}
               style={[styles.filterButton, filter === filtro && styles.filterButtonActive]}

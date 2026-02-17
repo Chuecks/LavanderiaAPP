@@ -14,10 +14,18 @@ export default function ContrasenaCambiadaScreen({ navigation }) {
       if (navigation?.canGoBack?.()) {
         navigation.goBack();
       } else {
-        navigation.navigate('Main');
+        try {
+          navigation.navigate('LavanderiaTabs');
+        } catch (_) {
+          navigation.navigate('Main');
+        }
       }
     } catch (e) {
-      navigation.navigate('Main');
+      try {
+        navigation.navigate('LavanderiaTabs');
+      } catch (_) {
+        navigation.navigate('Main');
+      }
     }
   };
 

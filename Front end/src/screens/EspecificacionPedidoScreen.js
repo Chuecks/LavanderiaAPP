@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,6 +41,8 @@ const DEPARTAMENTOS_URUGUAY = [
 ];
 
 export default function EspecificacionPedidoScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
+  const bottomSafe = Math.max(insets.bottom, 20) + 24;
   // Obtener servicio de los parámetros o AsyncStorage
   const params = route?.params || {};
   const [servicio, setServicio] = useState(params?.servicio || null);
@@ -663,7 +666,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
         </Text>
       </LinearGradient>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: bottomSafe }} showsVerticalScrollIndicator={false}>
         <View style={styles.form}>
           {/* Dirección de Recogida */}
           {renderDireccionForm('recogida', 'Dirección de Recogida')}
@@ -767,7 +770,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
         onRequestClose={() => setDepartamentoModalVisible({ recogida: false, entrega: false })}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: bottomSafe }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
               <TouchableOpacity
@@ -816,7 +819,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
         onRequestClose={() => setHorarioRecogidaModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: bottomSafe }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {pasoRecogida === 'hora' && (
@@ -863,9 +866,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
                   {fechaSeleccionada && obtenerDiasLaborables().find(d => d.value === fechaSeleccionada)?.label}
                 </Text>
                 <Text style={[styles.modalSubtitle, { marginTop: 10, fontSize: 14, color: '#666' }]}>
-                  {fechaSeleccionada === new Date().toISOString().split('T')[0]
-                    ? 'Selecciona una hora (mín. 1 h desde ahora)'
-                    : 'Selecciona una hora (8:00 - 17:00)'}
+                  Selecciona una hora
                 </Text>
                 {obtenerHorasDisponiblesRecogida().map((hora, index) => (
                   <TouchableOpacity
@@ -927,7 +928,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
         onRequestClose={() => setHorarioEntregaModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: bottomSafe }]}>
             <View style={styles.modalHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {pasoEntrega === 'hora' && (
@@ -974,9 +975,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
                   {fechaEntregaSeleccionada && obtenerDiasLaborables().find(d => d.value === fechaEntregaSeleccionada)?.label}
                 </Text>
                 <Text style={[styles.modalSubtitle, { marginTop: 10, fontSize: 14, color: '#666' }]}>
-                  {formData.horarioRecogida
-                    ? 'Hora mín. 1 h desde ahora y 3 h después de la recogida'
-                    : 'Selecciona una hora (8:00 - 17:00)'}
+                  Selecciona una hora
                 </Text>
                 {obtenerHorasDisponiblesEntrega().map((hora, index) => (
                   <TouchableOpacity

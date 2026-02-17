@@ -111,14 +111,28 @@ const pedidoSchema = new mongoose.Schema({
         departamento: { type: String, trim: true },
         codigoPostal: { type: String, trim: true, default: '' }
     },
+    lavanderiaId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lavanderia',
+        default: null
+    },
     estado: {
         type: String,
-        enum: ['pendiente', 'en_proceso', 'completado', 'cancelado'],
+        enum: ['pendiente', 'confirmado', 'en_proceso', 'completado', 'cancelado'],
         default: 'pendiente'
     },
     fechaCompletado: {
         type: Date
-    }
+    },
+    rechazadoPorLavanderia: {
+        type: Boolean,
+        default: false
+    },
+    // IDs de lavanderías que ya rechazaron este pedido (para no reasignarles y evitar bucle)
+    rechazadoPorLavanderias: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lavanderia'
+    }]
 }, {
     timestamps: true
 });
@@ -127,6 +141,8 @@ const pedidoSchema = new mongoose.Schema({
 pedidoSchema.index({ usuario: 1 });
 pedidoSchema.index({ estado: 1 });
 pedidoSchema.index({ usuario: 1, estado: 1 });
+pedidoSchema.index({ lavanderiaId: 1 });
+pedidoSchema.index({ lavanderiaId: 1, estado: 1 });
 
 const Pedido = mongoose.model('Pedido', pedidoSchema);
 

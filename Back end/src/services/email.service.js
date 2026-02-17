@@ -22,10 +22,11 @@ const crearTransporter = () => {
     });
 };
 
-// Email de nuevo pedido: crear transport JUSTO ANTES de sendMail (evita "transporter is not defined")
-const enviarEmailPedido = async (pedidoData) => {
+// Email de nuevo pedido: enviar a la lavandería asignada (o fallback a EMAIL_DESTINO si no se pasa)
+// pedidoData: datos del pedido; emailLavanderia: email de la lavandería (opcional)
+const enviarEmailPedido = async (pedidoData, emailLavanderia = null) => {
     comprobarConfigEmail();
-    const emailDestino = process.env.EMAIL_DESTINO || process.env.EMAIL_USER;
+    const emailDestino = emailLavanderia && emailLavanderia.trim() ? emailLavanderia.trim() : (process.env.EMAIL_DESTINO || process.env.EMAIL_USER);
 
     const d = (obj, key, def = '') => (obj && obj[key] != null ? String(obj[key]) : def);
     const rec = pedidoData?.direccionRecogida || {};
@@ -37,8 +38,6 @@ const enviarEmailPedido = async (pedidoData) => {
     const usuario = pedidoData?.usuario || {};
     const lav = pedidoData?.lavanderia;
     const lavanderiaLinea = lav ? `Lavanderia: ${lav.nombre || 'N/A'} - ${[lav.calle, lav.numeroPuerta, lav.ciudad].filter(Boolean).join(', ')}` : '';
-    const idPedido = (pedidoData && (pedidoData._id || pedidoData.id)) ? String(pedidoData._id || pedidoData.id) : 'N/A';
-    const fechaPedido = pedidoData?.createdAt ? new Date(pedidoData.createdAt).toLocaleString('es-UY') : new Date().toLocaleString('es-UY');
     const horarioRec = d(pedidoData, 'horarioRecogida', 'N/A');
     const horarioEnt = d(pedidoData, 'horarioEntrega', 'N/A');
     const notas = d(pedidoData, 'notas');
@@ -46,7 +45,7 @@ const enviarEmailPedido = async (pedidoData) => {
     const mailOptions = {
         from: `"Lavadero App" <${process.env.EMAIL_USER}>`,
         to: emailDestino,
-        subject: `Nuevo Pedido - ${servicioNombre}`,
+        subject: emailLavanderia ? `Solicitud de pedido - ${servicioNombre}` : `Nuevo Pedido - ${servicioNombre}`,
         html: `
             <!DOCTYPE html>
             <html>
@@ -66,14 +65,8 @@ const enviarEmailPedido = async (pedidoData) => {
             </head>
             <body>
                 <div class="container">
-                    <div class="header"><h1>Nuevo Pedido Recibido</h1></div>
+                    <div class="header"><h1>${emailLavanderia ? 'Solicitud de pedido' : 'Nuevo Pedido Recibido'}</h1></div>
                     <div class="content">
-                        <div class="section">
-                            <div class="section-title">Informacion del Pedido</div>
-                            <div class="info-row"><span class="label">ID:</span> <span class="value">${idPedido}</span></div>
-                            <div class="info-row"><span class="label">Estado:</span> <span class="value">${d(pedidoData, 'estado', 'Pendiente')}</span></div>
-                            <div class="info-row"><span class="label">Fecha:</span> <span class="value">${fechaPedido}</span></div>
-                        </div>
                         <div class="section">
                             <div class="section-title">Cliente</div>
                             <div class="info-row"><span class="label">Nombre:</span> <span class="value">${d(usuario, 'nombre', 'N/A')}</span></div>
@@ -107,7 +100,6 @@ const enviarEmailPedido = async (pedidoData) => {
         `,
         text: [
             'Nuevo Pedido Recibido',
-            'ID: ' + idPedido,
             'Cliente: ' + d(usuario, 'nombre', 'N/A') + ' - ' + d(usuario, 'email', 'N/A') + ' - ' + d(usuario, 'telefono', 'N/A'),
             'Servicio: ' + servicioNombre + ' - $' + servicioPrecio,
             'Recogida: ' + dirRecogida,

@@ -76,12 +76,6 @@ export default function PedidoConfirmadoScreen({ route, navigation }) {
                 <View style={styles.lavanderiaTextWrap}>
                   <Text style={styles.lavanderiaLabel}>Lavandería asignada a tu pedido</Text>
                   <Text style={styles.lavanderiaNombre}>{pedido.lavanderia.nombre}</Text>
-                  <Text style={styles.lavanderiaDir}>
-                    {[pedido.lavanderia.calle, pedido.lavanderia.numeroPuerta].filter(Boolean).join(' ')}
-                    {pedido.lavanderia.numeroApartamento ? `, Apt. ${pedido.lavanderia.numeroApartamento}` : ''}
-                    {pedido.lavanderia.barrio ? ` · ${pedido.lavanderia.barrio}` : ''}
-                    {pedido.lavanderia.ciudad ? `, ${pedido.lavanderia.ciudad}` : ''}
-                  </Text>
                 </View>
               </View>
             ) : null}
@@ -214,12 +208,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
-  },
-  lavanderiaDir: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
   redirectText: {
     fontSize: 14,

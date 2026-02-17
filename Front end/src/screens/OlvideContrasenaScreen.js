@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,15 +9,29 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import AppLogo from '../components/AppLogo';
 import { apiRequest } from '../config/api';
+
+const NAV_BAR_BLUE = '#357ABD';
 
 export default function OlvideContrasenaScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    NavigationBar.setBackgroundColorAsync(NAV_BAR_BLUE);
+    NavigationBar.setButtonStyleAsync('light');
+    return () => {
+      NavigationBar.setBackgroundColorAsync('#ffffff');
+      NavigationBar.setButtonStyleAsync('dark');
+    };
+  }, []);
 
   const handleEnviar = async () => {
     setError('');
@@ -62,7 +76,7 @@ export default function OlvideContrasenaScreen({ navigation }) {
       <LinearGradient colors={['#4A90E2', '#357ABD']} style={styles.container}>
         <View style={styles.content}>
           <View style={styles.iconContainer}>
-            <Ionicons name="mail-open" size={80} color="#fff" />
+            <AppLogo size={200} />
           </View>
           <Text style={styles.title}>Revisa tu correo</Text>
           <Text style={styles.subtitle}>
@@ -95,7 +109,7 @@ export default function OlvideContrasenaScreen({ navigation }) {
           </TouchableOpacity>
 
           <View style={styles.iconContainer}>
-            <Ionicons name="key" size={80} color="#fff" />
+            <AppLogo size={200} />
           </View>
           <Text style={styles.title}>¿Olvidaste tu contraseña?</Text>
           <Text style={styles.subtitle}>
@@ -170,20 +184,20 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   iconContainer: {
-    marginBottom: 20,
+    marginBottom: 4,
   },
   title: {
     fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 10,
+    marginBottom: 4,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
     color: '#fff',
     opacity: 0.95,
-    marginBottom: 30,
+    marginBottom: 10,
     textAlign: 'center',
     paddingHorizontal: 10,
   },

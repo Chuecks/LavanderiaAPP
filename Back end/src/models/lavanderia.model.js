@@ -10,7 +10,10 @@ const lavanderiaSchema = new mongoose.Schema({
     departamento: { type: String, required: true, trim: true },
     codigoPostal: { type: String, trim: true, default: '' },
     lat: { type: Number, required: true },
-    lng: { type: Number, required: true }
+    lng: { type: Number, required: true },
+    usuarioId: { type: mongoose.Schema.Types.ObjectId, ref: 'Usuario', default: null },
+    // Servicios que ofrece esta lavandería (nombres; vacío = no restringido para compatibilidad)
+    serviciosOfrecidos: [{ type: String, trim: true }]
 }, { _id: true });
 
 lavanderiaSchema.index({ lat: 1, lng: 1 });

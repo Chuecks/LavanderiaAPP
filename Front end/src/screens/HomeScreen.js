@@ -7,30 +7,65 @@ import {
   TouchableOpacity,
   Dimensions,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { obtenerEstadisticas, obtenerPedidos } from '../services/pedido.service';
+import { obtenerEstadisticas, obtenerPedidos, reasignarPedidoRechazado } from '../services/pedido.service';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
+const KEY_RECHAZOS_VISTOS = 'pedidosRechazoVistos';
 
 export default function HomeScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [estadisticas, setEstadisticas] = useState({
     total: 0,
     pendientes: 0,
+    confirmados: 0,
     enProceso: 0,
     completados: 0
   });
   const [pedidosRecientes, setPedidosRecientes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pedidosRechazados, setPedidosRechazados] = useState([]);
+  const [rechazosVistos, setRechazosVistos] = useState([]);
+  const [rechazosVistosListos, setRechazosVistosListos] = useState(false);
+  const [modalRechazoVisible, setModalRechazoVisible] = useState(false);
+  const [pedidoRechazoActual, setPedidoRechazoActual] = useState(null);
+  const [loadingReasignar, setLoadingReasignar] = useState(false);
 
   useEffect(() => {
     loadUserData();
     loadData();
   }, []);
+
+  // Cargar lista de rechazos ya mostrados (solo una vez por pedido)
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await AsyncStorage.getItem(KEY_RECHAZOS_VISTOS);
+        const list = data ? JSON.parse(data) : [];
+        if (Array.isArray(list)) setRechazosVistos(list);
+      } catch (e) {
+        console.error('Error al cargar rechazos vistos:', e);
+      } finally {
+        setRechazosVistosListos(true);
+      }
+    })();
+  }, []);
+
+  const marcarRechazoVisto = (pedidoId) => {
+    if (!pedidoId) return;
+    const idStr = String(pedidoId);
+    setRechazosVistos((prev) => {
+      const next = prev.includes(idStr) ? prev : [...prev, idStr];
+      AsyncStorage.setItem(KEY_RECHAZOS_VISTOS, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
 
   // Recargar datos cuando la pantalla recibe foco
   useFocusEffect(
@@ -60,6 +95,7 @@ export default function HomeScreen({ navigation }) {
           setEstadisticas({
             total: stats.total ?? 0,
             pendientes: stats.pendientes ?? 0,
+            confirmados: stats.confirmados ?? 0,
             enProceso: stats.enProceso ?? 0,
             completados: stats.completados ?? 0
           });
@@ -80,9 +116,12 @@ export default function HomeScreen({ navigation }) {
           fecha: calcularFechaRelativa(pedido.createdAt || Date.now())
         }));
         setPedidosRecientes(pedidosFormateados);
+        const rechazados = lista.filter((p) => p.estado === 'cancelado' && p.rechazadoPorLavanderia === true);
+        setPedidosRechazados(rechazados);
       } catch (e) {
         console.error('Error al cargar pedidos:', e);
         setPedidosRecientes([]);
+        setPedidosRechazados([]);
       }
     } finally {
       setLoading(false);
@@ -92,11 +131,23 @@ export default function HomeScreen({ navigation }) {
   const mapearEstado = (estado) => {
     const estados = {
       'pendiente': 'Pendiente',
+      'confirmado': 'Confirmado',
       'en_proceso': 'En Proceso',
       'completado': 'Completado',
       'cancelado': 'Cancelado'
     };
     return estados[estado] || estado;
+  };
+
+  const getColorPorEstado = (estado) => {
+    switch (estado) {
+      case 'Completado': return '#50C878';
+      case 'Confirmado':
+      case 'En Proceso': return estado === 'Confirmado' ? '#F5A623' : '#4A90E2';
+      case 'Cancelado': return '#666';
+      case 'Pendiente':
+      default: return '#E94B3C';
+    }
   };
 
   const calcularFechaRelativa = (fecha) => {
@@ -118,19 +169,90 @@ export default function HomeScreen({ navigation }) {
     }
   };
 
+  // Orden: arriba izq Pendientes, arriba der Confirmados, abajo izq En proceso, abajo der Completados
+  // filterForMisPedidos debe coincidir con los filtros de MisPedidosScreen: Pendiente, Confirmado, En Proceso, Completado
   const stats = [
-    { label: 'Mis Pedidos', value: estadisticas.total.toString(), icon: 'list', color: '#4A90E2' },
-    { label: 'En Proceso', value: estadisticas.enProceso.toString(), icon: 'time', color: '#F5A623' },
-    { label: 'Completados', value: estadisticas.completados.toString(), icon: 'checkmark-circle', color: '#50C878' },
-    { label: 'Pendientes', value: estadisticas.pendientes.toString(), icon: 'hourglass', color: '#E94B3C' },
+    { label: 'Pendientes', value: estadisticas.pendientes.toString(), icon: 'hourglass', color: '#E94B3C', filterForMisPedidos: 'Pendiente' },
+    { label: 'Confirmados', value: estadisticas.confirmados.toString(), icon: 'checkmark-circle', color: '#F5A623', filterForMisPedidos: 'Confirmado' },
+    { label: 'En Proceso', value: estadisticas.enProceso.toString(), icon: 'time', color: '#4A90E2', filterForMisPedidos: 'En Proceso' },
+    { label: 'Completados', value: estadisticas.completados.toString(), icon: 'checkmark-done-circle', color: '#50C878', filterForMisPedidos: 'Completado' },
   ];
 
+  const handleStatPress = (filterForMisPedidos) => {
+    navigation.navigate('Mis Pedidos', { initialFilter: filterForMisPedidos });
+  };
+
   const quickActions = [
-    { title: 'Solicitar Servicio', icon: 'add-circle', color: '#4A90E2', screen: 'Servicios' },
-    { title: 'Mis Pedidos', icon: 'list', color: '#50C878', screen: 'Mis Pedidos' },
+    { title: 'Servicios', icon: 'shirt', color: '#4A90E2', screen: 'Servicios' },
     { title: 'Direcciones', icon: 'location', color: '#F5A623', screen: 'Direcciones' },
-    { title: 'Mi Perfil', icon: 'person', color: '#E94B3C', screen: 'Perfil' },
+    { title: 'Mis Pedidos', icon: 'list', color: '#50C878', screen: 'Mis Pedidos' },
+    { title: 'Perfil', icon: 'person', color: '#E94B3C', screen: 'Perfil' },
   ];
+
+  useEffect(() => {
+    if (!rechazosVistosListos || pedidosRechazados.length === 0) return;
+    const siguiente = pedidosRechazados.find((p) => !rechazosVistos.includes(String(p._id)));
+    if (siguiente) {
+      setPedidoRechazoActual(siguiente);
+      setModalRechazoVisible(true);
+    } else {
+      setModalRechazoVisible(false);
+      setPedidoRechazoActual(null);
+    }
+  }, [rechazosVistosListos, pedidosRechazados, rechazosVistos]);
+
+  const cerrarModalRechazo = (pedidoId) => {
+    if (pedidoId) marcarRechazoVisto(pedidoId);
+    const idsVistos = pedidoId ? [...rechazosVistos, String(pedidoId)] : rechazosVistos;
+    const siguiente = pedidosRechazados.find((p) => !idsVistos.includes(String(p._id)));
+    if (siguiente) setPedidoRechazoActual(siguiente);
+    else {
+      setModalRechazoVisible(false);
+      setPedidoRechazoActual(null);
+    }
+  };
+
+  const handleReasignarPedido = async () => {
+    if (!pedidoRechazoActual) return;
+    setLoadingReasignar(true);
+    const idActual = pedidoRechazoActual._id;
+    try {
+      const res = await reasignarPedidoRechazado(idActual);
+      // No marcar como visto: si la nueva lavandería también rechaza, debe volver a aparecer el aviso (mismo pedido _id)
+      setModalRechazoVisible(false);
+      setPedidoRechazoActual(null);
+      loadData();
+      Alert.alert('Listo', res.mensaje || 'Pedido reasignado a otra lavandería. Aparecerá como pendiente para que la acepten.');
+    } catch (err) {
+      const codigo = err.codigo || (err.response && err.response.data && err.response.data.codigo);
+      const mensaje = codigo === 'NO_OTRA_LAVANDERIA_CERCANA'
+        ? 'No se pudo realizar el pedido ya que no cuenta con otra lavandería cercana.'
+        : (err.message || 'No se pudo reasignar el pedido.');
+      Alert.alert('Aviso', mensaje);
+      marcarRechazoVisto(idActual);
+      const newVistos = [...rechazosVistos, String(idActual)];
+      const siguiente = pedidosRechazados.find((p) => !newVistos.includes(String(p._id)));
+      if (siguiente) setPedidoRechazoActual(siguiente);
+      else {
+        setModalRechazoVisible(false);
+        setPedidoRechazoActual(null);
+      }
+    } finally {
+      setLoadingReasignar(false);
+    }
+  };
+
+  const handleEntendidoRechazo = () => {
+    if (pedidoRechazoActual) marcarRechazoVisto(pedidoRechazoActual._id);
+    const idsVistos = pedidoRechazoActual ? [...rechazosVistos, String(pedidoRechazoActual._id)] : rechazosVistos;
+    const siguiente = pedidosRechazados.find((p) => !idsVistos.includes(String(p._id)));
+    if (siguiente) {
+      setPedidoRechazoActual(siguiente);
+    } else {
+      setModalRechazoVisible(false);
+      setPedidoRechazoActual(null);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -138,19 +260,24 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.headerTitle}>
           Bienvenido{userData?.nombre ? `, ${userData.nombre.split(' ')[0]}` : ''}
         </Text>
-        <Text style={styles.headerSubtitle}>Gestiona tus servicios de lavandería</Text>
+        <Text style={styles.headerSubtitle}>Gestiona tus pedidos de lavandería</Text>
       </LinearGradient>
 
       <View style={styles.content}>
         <View style={styles.statsContainer}>
           {stats.map((stat, index) => (
-            <View key={index} style={styles.statCard}>
+            <TouchableOpacity
+              key={index}
+              style={styles.statCard}
+              onPress={() => handleStatPress(stat.filterForMisPedidos)}
+              activeOpacity={0.7}
+            >
               <View style={[styles.statIconContainer, { backgroundColor: `${stat.color}20` }]}>
                 <Ionicons name={stat.icon} size={24} color={stat.color} />
               </View>
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -161,7 +288,7 @@ export default function HomeScreen({ navigation }) {
               <TouchableOpacity
                 key={index}
                 style={styles.actionCard}
-                onPress={() => navigation.navigate(action.screen)}
+                onPress={() => navigation.navigate(action.screen, action.params || {})}
               >
                 <LinearGradient
                   colors={[action.color, `${action.color}CC`]}
@@ -208,7 +335,7 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.orderStatus}>
                   <View style={[
                     styles.statusBadge,
-                    { backgroundColor: pedido.estado === 'Completado' ? '#50C878' : pedido.estado === 'En Proceso' ? '#F5A623' : '#E94B3C' }
+                    { backgroundColor: getColorPorEstado(pedido.estado) }
                   ]}>
                     <Text style={styles.statusText}>{pedido.estado}</Text>
                   </View>
@@ -218,6 +345,40 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
       </View>
+
+      <Modal visible={modalRechazoVisible} transparent animationType="fade">
+        <View style={styles.modalRechazoOverlay}>
+          <View style={styles.modalRechazoContent}>
+            <View style={styles.modalRechazoIconWrap}>
+              <Ionicons name="alert-circle" size={48} color="#E94B3C" />
+            </View>
+            <Text style={styles.modalRechazoTitle}>Pedido rechazado</Text>
+            <Text style={styles.modalRechazoText}>
+              La lavandería rechazó tu pedido. ¿Deseas intentar con la siguiente lavandería más cercana?
+            </Text>
+            <View style={styles.modalRechazoButtons}>
+              <TouchableOpacity
+                style={styles.modalRechazoBtnEntendido}
+                onPress={handleEntendidoRechazo}
+                disabled={loadingReasignar}
+              >
+                <Text style={styles.modalRechazoBtnEntendidoText}>Entendido</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalRechazoBtnReasignar}
+                onPress={handleReasignarPedido}
+                disabled={loadingReasignar}
+              >
+                {loadingReasignar ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalRechazoBtnReasignarText}>Intentar con otra lavandería</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -394,6 +555,63 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     marginTop: 5,
+  },
+  modalRechazoOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalRechazoContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+  },
+  modalRechazoIconWrap: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalRechazoTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalRechazoText: {
+    fontSize: 15,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  modalRechazoButtons: {
+  },
+  modalRechazoBtnEntendido: {
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalRechazoBtnEntendidoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  modalRechazoBtnReasignar: {
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: '#4A90E2',
+    alignItems: 'center',
+  },
+  modalRechazoBtnReasignarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

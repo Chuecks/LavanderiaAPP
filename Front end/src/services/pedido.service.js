@@ -91,3 +91,91 @@ export const obtenerEstadisticas = async () => {
     throw error;
   }
 };
+
+// ----- Lavandería: pedidos asignados a esta lavandería -----
+
+export const listarPedidosLavanderia = async (estado = null) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const endpoint = estado ? `/pedidos/lavanderia?estado=${estado}` : '/pedidos/lavanderia';
+    const response = await apiRequest(endpoint, 'GET', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al listar pedidos lavandería:', error);
+    throw error;
+  }
+};
+
+export const aceptarPedidoLavanderia = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/aceptar`, 'PUT', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al aceptar pedido:', error);
+    throw error;
+  }
+};
+
+export const rechazarPedidoLavanderia = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/rechazar`, 'PUT', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al rechazar pedido:', error);
+    throw error;
+  }
+};
+
+export const cancelarPedidoLavanderia = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/cancelar`, 'PUT', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al cancelar pedido:', error);
+    throw error;
+  }
+};
+
+export const pasarAEnProcesoLavanderia = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/en-proceso`, 'PUT', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al pasar pedido a en proceso:', error);
+    throw error;
+  }
+};
+
+export const pasarACompletadoLavanderia = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/completar`, 'PUT', null, token);
+    return response.data;
+  } catch (error) {
+    console.error('Error al completar pedido:', error);
+    throw error;
+  }
+};
+
+// Usuario: reasignar pedido rechazado por lavandería a la siguiente más cercana
+export const reasignarPedidoRechazado = async (id) => {
+  try {
+    const token = await getToken();
+    if (!token) throw new Error('No hay token de autenticación');
+    const response = await apiRequest(`/pedidos/${id}/reasignar-lavanderia`, 'PUT', null, token);
+    return response;
+  } catch (error) {
+    console.error('Error al reasignar pedido:', error);
+    throw error;
+  }
+};

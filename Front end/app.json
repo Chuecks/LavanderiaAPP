@@ -9,9 +9,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#4A90E2"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lavadero.app"
@@ -20,9 +18,18 @@
       "adaptiveIcon": {
         "backgroundColor": "#4A90E2"
       },
-      "package": "com.lavadero.app"
+      "package": "com.lavadero.app",
+      "usesCleartextTraffic": true
     },
-    "web": {}
+    "web": {},
+    "extra": {
+      "eas": {
+        "projectId": "cc8f5cd9-739c-4425-be4f-3e7a801e26af"
+      }
+    },
+    "plugins": [
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }],
+      ["expo-navigation-bar", { "backgroundColor": "#ffffff", "barStyle": "dark", "position": "relative" }]
+    ]
   }
 }
-
