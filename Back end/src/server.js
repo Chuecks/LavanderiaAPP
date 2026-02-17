@@ -44,25 +44,6 @@ mongoose.connect(MONGODB_URI, {
             console.log('Nota:', e.message);
         }
     }
-    // Seed de lavanderías en segundo plano (no bloquea ni rompe el arranque)
-    setImmediate(() => {
-        const Lavanderia = require('./models/lavanderia.model');
-        const fs = require('fs');
-        const path = require('path');
-        Lavanderia.countDocuments()
-            .then((count) => {
-                if (count > 0) return;
-                const dataPath = path.join(__dirname, 'data', 'lavanderias.iniciales.json');
-                if (!fs.existsSync(dataPath)) return;
-                const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-                return Lavanderia.insertMany(data).then(() => {
-                    console.log('✅ Lavanderías iniciales cargadas:', data.length);
-                });
-            })
-            .catch((e) => {
-                console.log('Nota al cargar lavanderías:', e.message);
-            });
-    });
 })
 .catch(err => {
     console.error('❌ Error de conexión a MongoDB:', err);
