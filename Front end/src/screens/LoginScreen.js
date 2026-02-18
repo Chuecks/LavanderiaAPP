@@ -59,6 +59,12 @@ export default function LoginScreen({ navigation, route }) {
     // Limpiar error anterior
     setError('');
 
+    // Validación: debe haber elegido un tipo de cuenta
+    if (tipoCuenta === null) {
+      setError('Por favor selecciona el tipo de cuenta (Usuario o Lavandería)');
+      return;
+    }
+
     // Validación básica
     if (!email.trim() || !password.trim()) {
       setError('Por favor ingresa email y contraseña');
@@ -67,24 +73,25 @@ export default function LoginScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      // Hacer petición al backend
+      // Hacer petición al backend, pasando el tipo de cuenta
       const response = await apiRequest('/auth/login', 'POST', {
         email: email.trim().toLowerCase(),
         password: password,
+        rol: tipoCuenta, // Enviar el tipo de cuenta para validación
       });
 
       if (response.success && response.data.token) {
         const usuario = response.data.usuario;
         await AsyncStorage.setItem('authToken', response.data.token);
         await AsyncStorage.setItem('userData', JSON.stringify(usuario));
+        
+        // Actualizar el contexto antes de cambiar isLoggedIn para evitar inconsistencias
         if (typeof setUserData === 'function') setUserData(usuario);
-
+        if (typeof setIsLoggedIn === 'function') setIsLoggedIn(true);
+        
         setEmail('');
         setPassword('');
         setError('');
-        if (typeof setIsLoggedIn === 'function') {
-          setTimeout(() => setIsLoggedIn(true), 200);
-        }
       } else {
         setError('Error al iniciar sesión. Por favor intenta nuevamente.');
       }
@@ -96,7 +103,11 @@ export default function LoginScreen({ navigation, route }) {
       
       if (error.message) {
         // Mensajes específicos del backend
-        if (error.message.includes('Credenciales inválidas')) {
+        if (error.message.includes('Esta cuenta no es de una lavandería')) {
+          errorMessage = 'Esta cuenta no es de una lavandería. Por favor inicia sesión en la opción de Usuario.';
+        } else if (error.message.includes('Esta cuenta es de una lavandería')) {
+          errorMessage = 'Esta cuenta es de una lavandería. Por favor inicia sesión en la opción de Lavandería.';
+        } else if (error.message.includes('Credenciales inválidas')) {
           errorMessage = 'Usuario o contraseña incorrectos. Por favor verifica tus credenciales.';
         } else if (error.message.includes('No se pudo conectar')) {
           errorMessage = 'No se pudo conectar al servidor. Verifica que el backend esté corriendo.';

@@ -13,5 +13,5 @@ export function AuthProvider({ children, initialLoggedIn = false }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  return ctx || { isLoggedIn: false, setIsLoggedIn: () => {} };
+  return ctx || { isLoggedIn: false, setIsLoggedIn: () => {}, userData: null, setUserData: () => {} };
 }

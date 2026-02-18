@@ -2,8 +2,12 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const morgan = require('morgan');
+const getLogger = require('./utils/logger');
+const { morganMiddleware, requestContextMiddleware } = require('./middleware/requestLogger');
 const { iniciarConsumidorEmail } = require('./consumers/email.consumer');
+
+// Inicializar logger
+const logger = getLogger('server');
 
 // Importar modelos
 require('./models/usuario.model');
@@ -24,7 +28,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev')); // Logging de peticiones HTTP
+app.use(morganMiddleware); // Logging de peticiones HTTP con Winston
+app.use(requestContextMiddleware); // Contexto de request (IP, etc)
 
 // Conexión a MongoDB
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/lavadero';
@@ -34,19 +39,19 @@ mongoose.connect(MONGODB_URI, {
     useUnifiedTopology: true,
 })
 .then(async () => {
-    console.log('✅ Conectado a MongoDB');
+    logger.databaseConnected('MongoDB');
     // Eliminar índice username_1 si existe (el modelo no usa username, solo email)
     try {
         await mongoose.connection.db.collection('usuarios').dropIndex('username_1');
-        console.log('✅ Índice username_1 eliminado (no usado en este proyecto)');
+        logger.info('Índice username_1 eliminado', { service: 'database' });
     } catch (e) {
         if (e.code !== 27 && e.codeName !== 'IndexNotFound') {
-            console.log('Nota:', e.message);
+            logger.warn('Índice no eliminado: ' + e.message, { service: 'database' });
         }
     }
 })
 .catch(err => {
-    console.error('❌ Error de conexión a MongoDB:', err);
+    logger.databaseError(err, 'initial_connection');
     process.exit(1);
 });
 
@@ -94,6 +99,13 @@ app.get('/api/debug/db', async (req, res) => {
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
+    logger.warn('Ruta no encontrada', {
+        service: 'api',
+        action: 'ROUTE_NOT_FOUND',
+        path: req.path,
+        method: req.method,
+        ipAddress: req.ipAddress
+    });
     res.status(404).json({
         success: false,
         mensaje: 'Ruta no encontrada'
@@ -102,7 +114,14 @@ app.use((req, res) => {
 
 // Manejo de errores global
 app.use((err, req, res, next) => {
-    console.error('❌ Error:', err.stack);
+    logger.error('Error no manejado', err, {
+        service: 'api',
+        action: 'UNHANDLED_ERROR',
+        path: req.path,
+        method: req.method,
+        ipAddress: req.ipAddress,
+        userId: req.usuario?._id
+    });
     res.status(500).json({
         success: false,
         mensaje: 'Error interno del servidor',
@@ -113,13 +132,16 @@ app.use((err, req, res, next) => {
 // Puerto y arranque: escuchar enseguida (como antes). MongoDB se conecta en segundo plano.
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    console.log(`📍 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    logger.serverStarted(PORT, process.env.NODE_ENV || 'development');
     // Comprobar configuración de email (pedidos y "olvidé contraseña" la usan)
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        console.log(`📧 Email configurado (${process.env.EMAIL_USER}). Los correos se envían directamente.`);
+        logger.info(`Email configurado (${process.env.EMAIL_USER}). Los correos se envían directamente.`, {
+            service: 'email'
+        });
     } else {
-        console.warn('⚠️ EMAIL_USER o EMAIL_PASS no configurados. Crea/edita Back end/.env para que lleguen los correos (pedidos y restablecer contraseña).');
+        logger.warn('EMAIL_USER o EMAIL_PASS no configurados. Crea/edita Back end/.env para que lleguen los correos.', {
+            service: 'email'
+        });
     }
     // RabbitMQ es opcional: los emails ya se envían desde el backend; el consumidor solo es extra
     iniciarConsumidorEmail().catch((err) => {

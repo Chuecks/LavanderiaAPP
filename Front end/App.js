@@ -27,8 +27,7 @@ class AppErrorBoundary extends React.Component {
         </View>
       );
     }
-    if (!this.props || this.props.children == null) return null;
-    return this.props.children;
+    return this.props?.children || null;
   }
 }
 
@@ -127,8 +126,19 @@ export default function App() {
           const response = await apiRequest('/auth/verificar', 'GET', null, token);
           if (response.success && response.data.usuario) {
             const usuario = response.data.usuario;
-            await AsyncStorage.setItem('userData', JSON.stringify(usuario));
-            setUserData(usuario);
+            console.log('Usuario verificado:', usuario); // DEBUG
+            const userData = {
+              _id: usuario._id,
+              nombre: usuario.nombre,
+              email: usuario.email,
+              rol: usuario.rol || 'usuario', // Asegurar que rol está presente
+              telefono: usuario.telefono,
+              direccion: usuario.direccion,
+              ultimoAcceso: usuario.ultimoAcceso,
+              createdAt: usuario.createdAt
+            };
+            await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            setUserData(userData);
             setIsLoggedIn(true);
           } else {
             await AsyncStorage.multiRemove(['authToken', 'userData']);
@@ -176,12 +186,13 @@ export default function App() {
     <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn, userData, setUserData }}>
     <NavigationContainer>
       <StatusBar style="light" />
+      {console.log('Nav Debug - isLoggedIn:', isLoggedIn, 'rol:', userData?.rol)}
       <Stack.Navigator
-        key={isLoggedIn ? (userData?.rol === 'lavanderia' ? 'lavanderia' : 'user') : 'logged-out'}
-        initialRouteName="Login"
+        initialRouteName={!isLoggedIn ? 'Login' : userData?.rol === 'lavanderia' ? 'LavanderiaTabs' : 'Main'}
         screenOptions={{
           headerShown: false,
           contentStyle: Platform.OS === 'web' ? { flex: 1, minHeight: '100vh' } : { flex: 1 },
+          animationEnabled: false,
         }}
       >
         {!isLoggedIn ? (
@@ -196,6 +207,7 @@ export default function App() {
             <Stack.Screen name="LavanderiaTabs" component={LavanderiaTabs} />
             <Stack.Screen name="LavanderiaServicios" component={LavanderiaServiciosScreen} options={{ headerShown: false }} />
             <Stack.Screen name="LavanderiaDireccion" component={LavanderiaDireccionScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="CerrarSesion" component={CerrarSesionScreen} />
             <Stack.Screen name="ContrasenaCambiada" component={ContrasenaCambiadaScreen} options={{ headerShown: false }} />
           </>

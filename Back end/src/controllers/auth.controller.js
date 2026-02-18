@@ -4,6 +4,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { enviarEmailNuevaContrasena } = require('../services/email.service');
 const { geocodificarDireccion } = require('../services/geocoding.service');
+const getLogger = require('../utils/logger');
+
+const logger = getLogger('auth');
 
 // Registro de nuevo usuario (cliente o lavandería)
 const registro = async (req, res) => {
@@ -117,7 +120,7 @@ const registro = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error en registro de usuario:', error);
+        logger.registerFailure(req.body.email || 'unknown', error.message);
         
         // Manejar errores de validación de Mongoose
         if (error.name === 'ValidationError') {
@@ -139,13 +142,21 @@ const registro = async (req, res) => {
 // Login de usuario (cliente)
 const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, rol } = req.body;
 
         // Validar que se envíen los datos requeridos
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
                 mensaje: 'Por favor ingresa email y contraseña'
+            });
+        }
+
+        // Validar que se envíe el rol
+        if (!rol || (rol !== 'usuario' && rol !== 'lavanderia')) {
+            return res.status(400).json({
+                success: false,
+                mensaje: 'Debes especificar si inicias sesión como Usuario o Lavandería'
             });
         }
 
@@ -156,6 +167,16 @@ const login = async (req, res) => {
             return res.status(401).json({
                 success: false,
                 mensaje: 'Credenciales inválidas'
+            });
+        }
+
+        // Verificar que el rol del usuario coincida con el tipo de login
+        if (usuario.rol !== rol) {
+            return res.status(401).json({
+                success: false,
+                mensaje: rol === 'lavanderia' 
+                    ? 'Esta cuenta no es de una lavandería. Por favor inicia sesión en la opción de Usuario.' 
+                    : 'Esta cuenta es de una lavandería. Por favor inicia sesión en la opción de Lavandería.'
             });
         }
 
