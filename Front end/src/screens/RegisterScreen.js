@@ -12,7 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as NavigationBar from 'expo-navigation-bar';
+import useAndroidNavBar from '../hooks/useAndroidNavBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AppLogo from '../components/AppLogo';
@@ -79,15 +79,8 @@ export default function RegisterScreen({ navigation, route }) {
   const [serviciosList, setServiciosList] = useState([]);
   const [serviciosOfrecidos, setServiciosOfrecidos] = useState([]);
 
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    NavigationBar.setBackgroundColorAsync(NAV_BAR_BLUE);
-    NavigationBar.setButtonStyleAsync('light');
-    return () => {
-      NavigationBar.setBackgroundColorAsync('#ffffff');
-      NavigationBar.setButtonStyleAsync('dark');
-    };
-  }, []);
+  // Asegura color de la barra Android cuando la pantalla está enfocada
+  useAndroidNavBar(NAV_BAR_BLUE);
 
   useEffect(() => {
     if (tipoCuenta === 'lavanderia') {

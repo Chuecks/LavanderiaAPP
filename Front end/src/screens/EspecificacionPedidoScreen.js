@@ -675,7 +675,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="time" size={24} color="#4A90E2" />
-              <Text style={styles.sectionTitle}>Horario de Recogida *</Text>
+              <Text style={styles.sectionTitle}>Horario de Recogida </Text>
             </View>
             <TouchableOpacity
               style={styles.inputContainer}
@@ -697,7 +697,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="time" size={24} color="#4A90E2" />
-              <Text style={styles.sectionTitle}>Horario de Entrega *</Text>
+              <Text style={styles.sectionTitle}>Horario de Entrega </Text>
             </View>
             <TouchableOpacity
               style={styles.inputContainer}
@@ -716,7 +716,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="document-text-outline" size={24} color="#4A90E2" />
-              <Text style={styles.sectionTitle}>Notas Adicionales (Opcional)</Text>
+              <Text style={styles.sectionTitle}>Notas Adicionales</Text>
             </View>
             <View style={styles.inputContainer}>
               <TextInput
@@ -846,7 +846,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
             
             {pasoRecogida === 'dia' ? (
               <ScrollView style={styles.modalList}>
-                <Text style={styles.modalSubtitle}>Selecciona un día (Lunes a Viernes, próximas 3 semanas)</Text>
+                <Text style={styles.modalSubtitle}>Selecciona un día de Lunes a Viernes</Text>
                 {obtenerDiasLaborables().map((dia, index) => (
                   <TouchableOpacity
                     key={index}
@@ -955,7 +955,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
             
             {pasoEntrega === 'dia' ? (
               <ScrollView style={styles.modalList}>
-                <Text style={styles.modalSubtitle}>Selecciona un día (Lunes a Viernes, próximas 3 semanas)</Text>
+                <Text style={styles.modalSubtitle}>Selecciona un día de  Lunes a Viernes</Text>
                 {obtenerDiasLaborables().map((dia, index) => (
                   <TouchableOpacity
                     key={index}

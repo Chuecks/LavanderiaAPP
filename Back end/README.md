@@ -62,8 +62,7 @@ NODE_ENV=development
 
 # Base de datos
 MONGODB_URI=mongodb://localhost:27017/lavadero
-# O para MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/lavadero
+# O para MongoDB Atlas: define MONGODB_URI en .env con tu connection string (desde el dashboard de Atlas)
 
 # Autenticación
 JWT_SECRET=tu-secret-key-super-segura-cambiar-en-produccion

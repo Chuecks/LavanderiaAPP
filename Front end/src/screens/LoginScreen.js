@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import * as NavigationBar from 'expo-navigation-bar';
+import useAndroidNavBar from '../hooks/useAndroidNavBar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import AppLogo from '../components/AppLogo';
@@ -30,15 +30,8 @@ export default function LoginScreen({ navigation, route }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    NavigationBar.setBackgroundColorAsync(NAV_BAR_BLUE);
-    NavigationBar.setButtonStyleAsync('light');
-    return () => {
-      NavigationBar.setBackgroundColorAsync('#ffffff');
-      NavigationBar.setButtonStyleAsync('dark');
-    };
-  }, []);
+  // Asegura color de la barra Android cuando la pantalla está enfocada
+  useAndroidNavBar(NAV_BAR_BLUE);
 
   // Botón atrás de Android: si hay tipo elegido, volver a la pantalla de elegir; si no, dejar que cierre/salga
   useEffect(() => {

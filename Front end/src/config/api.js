@@ -1,8 +1,8 @@
 // Configuración de la API
 // Desarrollo: IP de la máquina donde CORRE EL BACKEND (puede ser esta PC o otra en la misma red).
 // Producción (build Play Store): URL de la VM/servidor público.
-const IP_BACKEND = '192.168.1.8';  // ← VM Google Cloud (IP estática externa)
-const PRODUCTION_API_URL = 'http://192.168.1.8:4000/api';  // ← Producción: build Play Store
+const IP_BACKEND = '34.176.229.57';  // ← VM Google Cloud (IP estática externa)
+const PRODUCTION_API_URL = 'http://34.176.229.57:4000/api';  // ← Producción: build Play Store
 
 import { Platform } from 'react-native';
 
