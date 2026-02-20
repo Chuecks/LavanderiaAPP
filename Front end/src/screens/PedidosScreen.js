@@ -46,6 +46,14 @@ const formatearFecha = (fecha) => {
   }
 };
 
+const formatearNumeroPedido = (numero) => {
+  const numeroParseado = Number(numero);
+  if (Number.isFinite(numeroParseado) && numeroParseado > 0) {
+    return numeroParseado;
+  }
+  return numero;
+};
+
 export default function PedidosScreen() {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -149,7 +157,7 @@ export default function PedidosScreen() {
           >
             <View style={styles.pedidoHeader}>
               <View style={styles.pedidoHeaderLeft}>
-                <Text style={styles.pedidoNumero}>Pedido #{pedido.numero}</Text>
+                <Text style={styles.pedidoNumero}>Pedido N°{formatearNumeroPedido(pedido.numero)}</Text>
               </View>
               <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(pedido.estado) }]}>
                 <Text style={styles.estadoText}>{pedido.estado}</Text>
@@ -187,7 +195,7 @@ export default function PedidosScreen() {
             {selectedPedido && (
               <>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Pedido #{selectedPedido.numero}</Text>
+                  <Text style={styles.modalTitle}>dadPedido N°{formatearNumeroPedido(selectedPedido.numero)}</Text>
                   <TouchableOpacity onPress={() => setModalVisible(false)}>
                     <Ionicons name="close" size={24} color="#666" />
                   </TouchableOpacity>

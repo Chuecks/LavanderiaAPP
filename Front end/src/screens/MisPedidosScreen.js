@@ -121,8 +121,20 @@ export default function MisPedidosScreen({ navigation, route }) {
     navigation?.navigate('Servicios');
   };
 
+  const formatearNumeroPedido = (numero) => {
+    const numeroParseado = Number(numero);
+    if (Number.isFinite(numeroParseado) && numeroParseado > 0) {
+      return numeroParseado;
+    }
+    return numero;
+  };
+
   const formatFecha = (fecha) => {
+    if (!fecha) return 'Fecha no disponible';
     const date = new Date(fecha);
+    if (isNaN(date.getTime())) {
+      return String(fecha);
+    }
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'short',
@@ -198,7 +210,7 @@ export default function MisPedidosScreen({ navigation, route }) {
                     <Ionicons name={getEstadoIcon(pedido.estado)} size={24} color={getEstadoColor(pedido.estado)} />
                   </View>
                   <View>
-                    <Text style={styles.pedidoNumero}>Pedido #{pedido.numero}</Text>
+                    <Text style={styles.pedidoNumero}>Pedido N°{formatearNumeroPedido(pedido.numero)}</Text>
                     <Text style={styles.pedidoFecha}>{formatFecha(pedido.fecha)}</Text>
                   </View>
                 </View>
@@ -244,7 +256,7 @@ export default function MisPedidosScreen({ navigation, route }) {
             {selectedPedido && (
               <>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Pedido #{selectedPedido.numero}</Text>
+                  <Text style={styles.modalTitle}>Pedido N°{formatearNumeroPedido(selectedPedido.numero)}</Text>
                   <TouchableOpacity onPress={() => setModalVisible(false)}>
                     <Ionicons name="close" size={24} color="#666" />
                   </TouchableOpacity>
