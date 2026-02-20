@@ -157,87 +157,105 @@ export default function LavanderiaDireccionScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalOverlay}
-        >
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cambiar dirección</Text>
+              <Text style={styles.modalTitle}>
+                Cambiar dirección
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={28} color="#333" />
+                <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-              <Text style={styles.inputLabel}>Calle *</Text>
+
+            <ScrollView style={styles.form}>
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Calle </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Nombre de la calle"
+                    value={form.calle}
+                    onChangeText={(value) => setForm((f) => ({ ...f, calle: value }))}
+                  />
+                </View>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>N° de puerta </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="123"
+                    value={form.numeroPuerta}
+                    onChangeText={(value) => setForm((f) => ({ ...f, numeroPuerta: value }))}
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.row}>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>N° apartamento</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Apt. 4B"
+                    value={form.numeroApartamento}
+                    onChangeText={(value) => setForm((f) => ({ ...f, numeroApartamento: value }))}
+                  />
+                </View>
+                <View style={styles.halfInput}>
+                  <Text style={styles.label}>Ciudad </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Ciudad"
+                    value={form.ciudad}
+                    onChangeText={(value) => setForm((f) => ({ ...f, ciudad: value }))}
+                  />
+                </View>
+              </View>
+
+              <Text style={styles.label}>Departamento </Text>
+              <View style={styles.selectContainer}>
+                <Ionicons name="location-outline" size={20} color="#666" style={styles.selectIcon} />
+                <TouchableOpacity
+                  style={styles.selectButton}
+                  onPress={() => setDepartamentoModalVisible(true)}
+                >
+                  <Text style={[styles.selectText, !form.departamento && styles.selectPlaceholder]}>
+                    {form.departamento || 'Seleccione'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.label}>Código postal </Text>
               <TextInput
                 style={styles.input}
-                placeholder="Calle"
-                placeholderTextColor="#999"
-                value={form.calle}
-                onChangeText={(v) => setForm((f) => ({ ...f, calle: v }))}
-              />
-              <Text style={styles.inputLabel}>N° puerta *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Número de puerta"
-                placeholderTextColor="#999"
-                value={form.numeroPuerta}
-                onChangeText={(v) => setForm((f) => ({ ...f, numeroPuerta: v }))}
-                keyboardType="numeric"
-              />
-              <Text style={styles.inputLabel}>N° apartamento (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Apto"
-                placeholderTextColor="#999"
-                value={form.numeroApartamento}
-                onChangeText={(v) => setForm((f) => ({ ...f, numeroApartamento: v }))}
-              />
-              <Text style={styles.inputLabel}>Ciudad *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Ciudad"
-                placeholderTextColor="#999"
-                value={form.ciudad}
-                onChangeText={(v) => setForm((f) => ({ ...f, ciudad: v }))}
-              />
-              <Text style={styles.inputLabel}>Departamento *</Text>
-              <TouchableOpacity
-                style={styles.selectTouch}
-                onPress={() => setDepartamentoModalVisible(true)}
-              >
-                <Text style={[styles.selectText, !form.departamento && styles.selectPlaceholder]}>
-                  {form.departamento || 'Seleccionar departamento'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-              <Text style={styles.inputLabel}>Código postal *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Código postal"
-                placeholderTextColor="#999"
+                placeholder="11000"
                 value={form.codigoPostal}
-                onChangeText={(v) => setForm((f) => ({ ...f, codigoPostal: v }))}
+                onChangeText={(value) => setForm((f) => ({ ...f, codigoPostal: value }))}
                 keyboardType="numeric"
               />
-              <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                onPress={guardar}
-                disabled={saving}
-              >
-                <LinearGradient colors={['#4A90E2', '#357ABD']} style={styles.saveButtonGradient}>
+
+              <TouchableOpacity style={styles.saveButton} onPress={guardar} disabled={saving}>
+                <LinearGradient
+                  colors={['#4A90E2', '#357ABD']}
+                  style={styles.saveButtonGradient}
+                >
                   {saving ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <Text style={styles.saveButtonText}>Guardar dirección</Text>
+                    <Text style={styles.saveButtonText}>Guardar</Text>
                   )}
                 </LinearGradient>
               </TouchableOpacity>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       <Modal visible={departamentoModalVisible} transparent animationType="slide" onRequestClose={() => setDepartamentoModalVisible(false)}>
@@ -332,42 +350,79 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    padding: 20,
     maxHeight: '90%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#333' },
-  modalBody: { padding: 20, paddingBottom: 32 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6, marginTop: 12 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  form: {
+    marginTop: 10,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 15,
+  },
   input: {
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    padding: 15,
     fontSize: 16,
     color: '#333',
   },
-  selectTouch: {
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  halfInput: {
+    flex: 1,
+  },
+  selectContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 15,
+    height: 50,
   },
-  selectText: { fontSize: 16, color: '#333' },
-  selectPlaceholder: { color: '#999' },
-  saveButton: { marginTop: 24, borderRadius: 10, overflow: 'hidden' },
-  saveButtonDisabled: { opacity: 0.7 },
-  saveButtonGradient: { paddingVertical: 16, alignItems: 'center' },
-  saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  selectIcon: {
+    marginRight: 10,
+  },
+  selectButton: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  selectPlaceholder: {
+    color: '#999',
+  },
+  saveButton: {
+    marginTop: 25,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  saveButtonGradient: {
+    padding: 15,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   pickerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

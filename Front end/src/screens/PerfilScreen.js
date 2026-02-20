@@ -346,7 +346,7 @@ export default function PerfilScreen({ navigation }) {
             </View>
             <Text style={styles.modalHint}>Ingresa tu contraseña actual y la nueva. La nueva debe tener 8+ caracteres, mayúscula, número y carácter especial.</Text>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contraseña actual *</Text>
+              <Text style={styles.inputLabel}>Contraseña actual </Text>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Tu contraseña actual"
@@ -358,7 +358,7 @@ export default function PerfilScreen({ navigation }) {
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Nueva contraseña *</Text>
+              <Text style={styles.inputLabel}>Nueva contraseña </Text>
               <TextInput
                 style={styles.modalInput}
                 placeholder="Nueva contraseña (8+ caracteres)"
@@ -370,7 +370,7 @@ export default function PerfilScreen({ navigation }) {
               />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Repetir nueva contraseña *</Text>
+              <Text style={styles.inputLabel}>Repetir nueva contraseña </Text>
               <View style={[
                 styles.modalInputRow,
                 repetirContrasena.length > 0 && nuevaContrasena !== repetirContrasena && styles.modalInputRowError,

@@ -113,6 +113,23 @@ export default function App() {
     checkAuthToken();
   }, []);
 
+  // navigation ref to control resets when role or login state changes
+  const navigationRef = React.useRef(null);
+
+  useEffect(() => {
+    // Wait until initial loading is done
+    if (isLoading) return;
+    try {
+      const target = isLoggedIn ? (userData?.rol === 'lavanderia' ? 'LavanderiaTabs' : 'Main') : 'Login';
+      if (navigationRef.current && navigationRef.current.reset) {
+        navigationRef.current.reset({ index: 0, routes: [{ name: target }] });
+      }
+    } catch (e) {
+      // ignore navigation errors during startup
+      console.warn('Navigation reset failed:', e?.message || e);
+    }
+  }, [isLoggedIn, userData, isLoading]);
+
   const checkAuthToken = async () => {
     const loadingTimeout = Platform.OS === 'web' ? setTimeout(() => {
       setIsLoading(false);
@@ -184,7 +201,7 @@ export default function App() {
     <SafeAreaProvider>
     <View style={rootStyle}>
     <AuthContext.Provider value={{ isLoggedIn, setIsLoggedIn, userData, setUserData }}>
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style="light" />
       {console.log('Nav Debug - isLoggedIn:', isLoggedIn, 'rol:', userData?.rol)}
       <Stack.Navigator

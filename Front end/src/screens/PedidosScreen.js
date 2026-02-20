@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,43 +8,69 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { obtenerPedidos, actualizarEstadoPedido } from '../services/pedido.service';
+import { useFocusEffect } from '@react-navigation/native';
+
+const formatearFecha = (fecha) => {
+  if (!fecha) return 'Fecha no disponible';
+  try {
+    // Intentar parsear como ISO string o timestamp
+    let date;
+    if (typeof fecha === 'string') {
+      date = new Date(fecha);
+    } else if (typeof fecha === 'number') {
+      date = new Date(fecha);
+    } else if (fecha instanceof Date) {
+      date = fecha;
+    } else {
+      return String(fecha);
+    }
+
+    // Validar que sea una fecha válida
+    if (isNaN(date.getTime())) {
+      return String(fecha);
+    }
+
+    return date.toLocaleDateString('es-UY', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch (error) {
+    console.log('Error al formatear fecha:', fecha, error);
+    return String(fecha);
+  }
+};
 
 export default function PedidosScreen() {
-  const [pedidos, setPedidos] = useState([
-    {
-      id: 1,
-      numero: '001',
-      cliente: 'Juan Pérez',
-      servicios: ['Lavado Básico', 'Planchado'],
-      total: 8000,
-      estado: 'En Proceso',
-      fecha: '2024-01-15',
-    },
-    {
-      id: 2,
-      numero: '002',
-      cliente: 'María García',
-      servicios: ['Lavado Premium'],
-      total: 8000,
-      estado: 'Completado',
-      fecha: '2024-01-15',
-    },
-    {
-      id: 3,
-      numero: '003',
-      cliente: 'Carlos López',
-      servicios: ['Limpieza en Seco'],
-      total: 12000,
-      estado: 'Pendiente',
-      fecha: '2024-01-15',
-    },
-  ]);
-
+  const [pedidos, setPedidos] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState(null);
+
+  // Cargar pedidos cuando la pantalla recibe foco
+  useFocusEffect(
+    React.useCallback(() => {
+      loadPedidos();
+    }, [])
+  );
+
+  const loadPedidos = async () => {
+    try {
+      setLoading(true);
+      const data = await obtenerPedidos();
+      setPedidos(data);
+    } catch (error) {
+      console.error('Error al cargar pedidos:', error);
+      Alert.alert('Error', 'No se pudieron cargar los pedidos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getEstadoColor = (estado) => {
     switch (estado) {
@@ -59,12 +85,21 @@ export default function PedidosScreen() {
     }
   };
 
-  const handleChangeEstado = (pedido, nuevoEstado) => {
-    setPedidos(pedidos.map(p =>
-      p.id === pedido.id ? { ...p, estado: nuevoEstado } : p
-    ));
-    setModalVisible(false);
-    Alert.alert('Éxito', `Estado cambiado a ${nuevoEstado}`);
+  const handleChangeEstado = async (pedido, nuevoEstado) => {
+    try {
+      setLoading(true);
+      await actualizarEstadoPedido(pedido._id || pedido.id, { estado: nuevoEstado });
+      setPedidos(pedidos.map(p =>
+        (p._id === pedido._id || p.id === pedido.id) ? { ...p, estado: nuevoEstado } : p
+      ));
+      setSelectedPedido({ ...selectedPedido, estado: nuevoEstado });
+      setModalVisible(false);
+      Alert.alert('Éxito', `Estado cambiado a ${nuevoEstado}`);
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo cambiar el estado del pedido');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openPedidoDetails = (pedido) => {
@@ -76,6 +111,19 @@ export default function PedidosScreen() {
     Alert.alert('Nuevo Pedido', 'Funcionalidad en desarrollo');
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Pedidos</Text>
+        </View>
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -85,15 +133,24 @@ export default function PedidosScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      {pedidos.length === 0 ? (
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Ionicons name="document-outline" size={80} color="#ccc" />
+          <Text style={styles.emptyText}>No hay pedidos</Text>
+          <Text style={styles.emptySubtext}>Los pedidos aparecerán aquí</Text>
+        </View>
+      ) : (
+        <ScrollView style={styles.content}>
         {pedidos.map((pedido) => (
           <TouchableOpacity
-            key={pedido.id}
+            key={pedido._id || pedido.id}
             style={styles.pedidoCard}
             onPress={() => openPedidoDetails(pedido)}
           >
             <View style={styles.pedidoHeader}>
-              <Text style={styles.pedidoNumero}>Pedido #{pedido.numero}</Text>
+              <View style={styles.pedidoHeaderLeft}>
+                <Text style={styles.pedidoNumero}>Pedido #{pedido.numero}</Text>
+              </View>
               <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(pedido.estado) }]}>
                 <Text style={styles.estadoText}>{pedido.estado}</Text>
               </View>
@@ -108,10 +165,6 @@ export default function PedidosScreen() {
                 <Ionicons name="shirt-outline" size={16} color="#666" />
                 <Text style={styles.infoText}>{pedido.servicios.length} servicio(s)</Text>
               </View>
-              <View style={styles.infoRow}>
-                <Ionicons name="calendar-outline" size={16} color="#666" />
-                <Text style={styles.infoText}>{pedido.fecha}</Text>
-              </View>
             </View>
 
             <View style={styles.pedidoFooter}>
@@ -120,7 +173,8 @@ export default function PedidosScreen() {
             </View>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+        </ScrollView>
+      )}
 
       <Modal
         animationType="slide"
@@ -160,8 +214,10 @@ export default function PedidosScreen() {
                   </View>
 
                   <View style={styles.detailSection}>
-                    <Text style={styles.detailLabel}>Fecha</Text>
-                    <Text style={styles.detailValue}>{selectedPedido.fecha}</Text>
+                    <Text style={styles.detailLabel}>Fecha de Entrega</Text>
+                    <Text style={styles.detailValue}>
+                      {formatearFecha(selectedPedido.fechaEntrega || selectedPedido.horarioEntrega || selectedPedido.deliveryDate || selectedPedido.fecha) || 'No especificada'}
+                    </Text>
                   </View>
 
                   <View style={styles.detailSection}>
@@ -172,24 +228,24 @@ export default function PedidosScreen() {
                   <View style={styles.actionsSection}>
                     <Text style={styles.actionsTitle}>Cambiar Estado</Text>
                     <View style={styles.estadoButtons}>
-                      <TouchableOpacity
-                        style={[styles.estadoButton, selectedPedido.estado === 'Pendiente' && styles.estadoButtonActive]}
-                        onPress={() => handleChangeEstado(selectedPedido, 'Pendiente')}
-                      >
-                        <Text style={styles.estadoButtonText}>Pendiente</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.estadoButton, selectedPedido.estado === 'En Proceso' && styles.estadoButtonActive]}
-                        onPress={() => handleChangeEstado(selectedPedido, 'En Proceso')}
-                      >
-                        <Text style={styles.estadoButtonText}>En Proceso</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.estadoButton, selectedPedido.estado === 'Completado' && styles.estadoButtonActive]}
-                        onPress={() => handleChangeEstado(selectedPedido, 'Completado')}
-                      >
-                        <Text style={styles.estadoButtonText}>Completado</Text>
-                      </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.estadoButton, selectedPedido.estado === 'Pendiente' && styles.estadoButtonActive]}
+                      onPress={() => handleChangeEstado(selectedPedido, 'Pendiente')}
+                    >
+                      <Text style={styles.estadoButtonText}>Pendiente</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.estadoButton, selectedPedido.estado === 'En Proceso' && styles.estadoButtonActive]}
+                      onPress={() => handleChangeEstado(selectedPedido, 'En Proceso')}
+                    >
+                      <Text style={styles.estadoButtonText}>En Proceso</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.estadoButton, selectedPedido.estado === 'Completado' && styles.estadoButtonActive]}
+                      onPress={() => handleChangeEstado(selectedPedido, 'Completado')}
+                    >
+                      <Text style={styles.estadoButtonText}>Completado</Text>
+                    </TouchableOpacity>
                     </View>
                   </View>
                 </ScrollView>
@@ -228,6 +284,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 10,
+    textAlign: 'center',
+  },
   content: {
     flex: 1,
     padding: 15,
@@ -246,13 +315,22 @@ const styles = StyleSheet.create({
   pedidoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 15,
+    gap: 10,
+  },
+  pedidoHeaderLeft: {
+    flex: 1,
   },
   pedidoNumero: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+  },
+  pedidoFecha: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
   },
   estadoBadge: {
     paddingHorizontal: 12,

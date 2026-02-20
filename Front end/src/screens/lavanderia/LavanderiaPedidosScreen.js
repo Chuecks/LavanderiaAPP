@@ -25,6 +25,37 @@ import {
 
 const ESTADOS_MOSTRAR = ['pendiente', 'confirmado', 'en_proceso', 'completado'];
 
+const formatearFecha = (fecha) => {
+  if (!fecha) return 'Fecha no disponible';
+  try {
+    // Intentar parsear como ISO string o timestamp
+    let date;
+    if (typeof fecha === 'string') {
+      date = new Date(fecha);
+    } else if (typeof fecha === 'number') {
+      date = new Date(fecha);
+    } else if (fecha instanceof Date) {
+      date = fecha;
+    } else {
+      return String(fecha);
+    }
+
+    // Validar que sea una fecha válida
+    if (isNaN(date.getTime())) {
+      return String(fecha);
+    }
+
+    return date.toLocaleDateString('es-UY', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch (error) {
+    console.log('Error al formatear fecha:', fecha, error);
+    return String(fecha);
+  }
+};
+
 export default function LavanderiaPedidosScreen({ navigation }) {
   const [pedidos, setPedidos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -372,7 +403,7 @@ export default function LavanderiaPedidosScreen({ navigation }) {
                         {usuario.nombre || 'Cliente'}
                       </Text>
                       <Text style={styles.pedidoFecha}>
-                        {formatFecha(pedido.createdAt)}
+                        {formatearFecha(pedido.createdAt)}
                       </Text>
                     </View>
                   </View>

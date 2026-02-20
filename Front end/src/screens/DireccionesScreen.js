@@ -204,14 +204,7 @@ export default function DireccionesScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#4A90E2', '#357ABD']} style={styles.header}>
-        {canGoBack && (
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-        )}
+        {/* Back button removed as requested */}
         <Text style={[styles.headerTitle, !canGoBack && styles.headerTitleCentered]}>Mis Direcciones</Text>
         <TouchableOpacity style={styles.addButton} onPress={handleAddDireccion}>
           <Ionicons name="add" size={24} color="#fff" />
@@ -280,7 +273,7 @@ export default function DireccionesScreen({ navigation }) {
             </View>
 
             <ScrollView style={styles.form}>
-              <Text style={styles.label}>Nombre (Opcional)</Text>
+              <Text style={styles.label}>Nombre </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ej: Casa, Trabajo, etc."
@@ -290,7 +283,7 @@ export default function DireccionesScreen({ navigation }) {
 
               <View style={styles.row}>
                 <View style={styles.halfInput}>
-                  <Text style={styles.label}>Calle *</Text>
+                  <Text style={styles.label}>Calle </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Nombre de la calle"
@@ -299,7 +292,7 @@ export default function DireccionesScreen({ navigation }) {
                   />
                 </View>
                 <View style={styles.halfInput}>
-                  <Text style={styles.label}>N° de puerta *</Text>
+                  <Text style={styles.label}>N° de puerta </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="123"
@@ -321,7 +314,7 @@ export default function DireccionesScreen({ navigation }) {
                   />
                 </View>
                 <View style={styles.halfInput}>
-                  <Text style={styles.label}>Ciudad *</Text>
+                  <Text style={styles.label}>Ciudad </Text>
                   <TextInput
                     style={styles.input}
                     placeholder="Ciudad"
@@ -331,7 +324,7 @@ export default function DireccionesScreen({ navigation }) {
                 </View>
               </View>
 
-              <Text style={styles.label}>Departamento *</Text>
+              <Text style={styles.label}>Departamento </Text>
               <View style={styles.selectContainer}>
                 <Ionicons name="location-outline" size={20} color="#666" style={styles.selectIcon} />
                 <TouchableOpacity
@@ -345,7 +338,7 @@ export default function DireccionesScreen({ navigation }) {
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.label}>Código postal *</Text>
+              <Text style={styles.label}>Código postal </Text>
               <TextInput
                 style={styles.input}
                 placeholder="11000"

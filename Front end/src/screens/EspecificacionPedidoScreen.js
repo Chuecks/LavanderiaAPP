@@ -532,7 +532,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
 
         <View style={styles.row}>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Calle *</Text>
+            <Text style={styles.label}>Calle </Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -543,7 +543,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
             </View>
           </View>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>N° de puerta *</Text>
+            <Text style={styles.label}>N° de puerta </Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -569,7 +569,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
             </View>
           </View>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Ciudad *</Text>
+            <Text style={styles.label}>Ciudad </Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
@@ -583,7 +583,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
 
         <View style={styles.row}>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Departamento *</Text>
+            <Text style={styles.label}>Departamento </Text>
             <TouchableOpacity
               style={styles.selectContainer}
               onPress={() => {
@@ -599,7 +599,7 @@ export default function EspecificacionPedidoScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
           <View style={styles.halfInput}>
-            <Text style={styles.label}>Código postal *</Text>
+            <Text style={styles.label}>Código postal </Text>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
