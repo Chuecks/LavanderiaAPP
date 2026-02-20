@@ -110,7 +110,7 @@ export default function HomeScreen({ navigation }) {
         const lista = Array.isArray(pedidos) ? pedidos : [];
         const pedidosFormateados = lista.slice(0, 3).map((pedido, index) => ({
           id: pedido._id,
-          numero: String(index + 1).padStart(3, '0'),
+          numero: index + 1,
           servicio: (pedido.servicio && pedido.servicio.nombre) ? pedido.servicio.nombre : 'Servicio',
           estado: mapearEstado(pedido.estado),
           fecha: calcularFechaRelativa(pedido.createdAt || Date.now())
@@ -167,6 +167,14 @@ export default function HomeScreen({ navigation }) {
     } else {
       return fechaPedido.toLocaleDateString('es-UY');
     }
+  };
+
+  const formatearNumeroPedido = (numero) => {
+    const numeroParseado = Number(numero);
+    if (Number.isFinite(numeroParseado) && numeroParseado > 0) {
+      return numeroParseado;
+    }
+    return numero;
   };
 
   // Orden: arriba izq Pendientes, arriba der Confirmados, abajo izq En proceso, abajo der Completados
@@ -328,7 +336,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => navigation.navigate('Mis Pedidos')}
               >
                 <View style={styles.orderInfo}>
-                  <Text style={styles.orderNumber}>Pedido #{pedido.numero}</Text>
+                  <Text style={styles.orderNumber}>Pedido N°{formatearNumeroPedido(pedido.numero)}</Text>
                   <Text style={styles.orderService}>{pedido.servicio}</Text>
                   <Text style={styles.orderDate}>{pedido.fecha}</Text>
                 </View>
